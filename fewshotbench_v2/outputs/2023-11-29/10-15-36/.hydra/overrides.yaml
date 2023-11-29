@@ -1,0 +1,3 @@
+- exp.name=test_training_1
+- method=maml
+- dataset=tabula_muris
