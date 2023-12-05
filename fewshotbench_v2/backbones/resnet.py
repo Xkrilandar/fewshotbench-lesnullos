@@ -70,3 +70,6 @@ def ResNet50(flatten=True):
 
 def ResNet101(flatten=True):
     return ResNet(BottleneckBlock, [3, 4, 23, 3], [256, 512, 1024, 2048], flatten)
+
+def ResNet12(flatten=True):
+    return ResNet(SimpleBlock, [3, 3, 3, 3], [64, 128, 256, 512], flatten)
