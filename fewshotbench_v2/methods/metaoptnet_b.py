@@ -35,7 +35,11 @@ class MetaOptNet(MetaTemplate):
     def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
 
-        scores_support = self.classifier(z_support)
+        z_support = z_support.contiguous()
+        z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
+        z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
+
+        scores_support = self.classifier(z_proto)
         scores_query = self.classifier(z_query)
         scores = -euclidean_dist(scores_query, scores_support)
         return scores
