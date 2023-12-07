@@ -31,6 +31,8 @@ class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
         self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
+        self.loss_fn = nn.CrossEntropyLoss()
+
 
     def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
