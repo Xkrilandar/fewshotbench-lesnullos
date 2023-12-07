@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import wandb
 from torch.autograd import Variable
 
 from methods.meta_template import MetaTemplate

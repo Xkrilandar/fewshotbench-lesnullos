@@ -28,10 +28,9 @@ class DifferentiableSVM(nn.Module):
         return reg_loss
 
 class MetaOptNet(MetaTemplate):
-    def __init__(self, backbone, n_way, n_support):
+    def __init__(self, backbone, n_way, n_support, num_classes, num_features):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
-        self.classifier = DifferentiableSVM() # Replace with actual SVM implementation
-        # ...
+        self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
 
     def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
