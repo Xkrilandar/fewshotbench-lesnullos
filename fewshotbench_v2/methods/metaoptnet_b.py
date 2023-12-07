@@ -35,8 +35,9 @@ class MetaOptNet(MetaTemplate):
     def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
 
-        # Directly use the support and query features in SVM
-        scores = self.classifier(z_support, z_query)
+        scores_support = self.classifier(z_support)
+        scores_query = self.classifier(z_query)
+        scores = -euclidean_dist(scores_query, scores_support)
         return scores
 
     def set_forward_loss(self, x):
@@ -45,3 +46,17 @@ class MetaOptNet(MetaTemplate):
 
         scores = self.set_forward(x)
         return self.loss_fn(scores, y_query)
+    
+
+def euclidean_dist( x, y):
+    # x: N x D
+    # y: M x D
+    n = x.size(0)
+    m = y.size(0)
+    d = x.size(1)
+    assert d == y.size(1)
+
+    x = x.unsqueeze(1).expand(n, m, d)
+    y = y.unsqueeze(0).expand(n, m, d)
+
+    return torch.pow(x - y, 2).sum(2)
