@@ -3,6 +3,7 @@ import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
+from helpers import solve_qp
 
 class DifferentiableSVM(nn.Module):
     def __init__(self, num_features, num_classes):
@@ -86,7 +87,8 @@ class MetaOptNet(MetaTemplate):
         #        \hat z =   argmin_z 1/2 z^T G z + e^T z
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
-        qp_sol = QPFunction(verbose=False)(G, e.detach(), C.detach(), h.detach(), dummy.detach(), dummy.detach())
+        #qp_sol = QPFunction(verbose=False)(G, e.detach(), C.detach(), h.detach(), dummy.detach(), dummy.detach())
+        qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), dummy.detach(), dummy.detach())
         #qp_sol = QPFunction(verbose=False)(G, e.detach(), dummy.detach(), dummy.detach(), dummy.detach(), dummy.detach())
 
         #qp_sol (n_way*tasks_per_batch, n_support)
