@@ -45,7 +45,7 @@ class MetaOptNet(MetaTemplate):
         # scores_support = self.classifier(z_proto)
         # scores = self.classifier(z_query)
         # scores = -euclidean_dist(scores_query, scores_support)
-        print(x)
+        print(x.shape)
         print("Je fais des testssssssss")
 
         tasks_per_batch = z_query.size(0)
