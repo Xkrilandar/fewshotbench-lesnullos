@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
-from helpers import solve_qp
+import cvxpy as cp
 
 class DifferentiableSVM(nn.Module):
     def __init__(self, num_features, num_classes):
@@ -163,5 +163,22 @@ def one_hot(indices, depth):
     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
     return encoded_indicies
+
+
+def solve_qp(Q, c, G, h, A, b):
+    # Create a variable to optimize
+    x = cp.Variable(len(c))
+
+    # Define the objective function
+    objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + c.T @ x)
+
+    # Define the constraints
+    constraints = [G @ x <= h, A @ x == b]
+
+    # Define the problem and solve it
+    prob = cp.Problem(objective, constraints)
+    prob.solve()
+
+    return x.value
 
 
