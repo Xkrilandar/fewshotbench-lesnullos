@@ -181,8 +181,8 @@ def solve_qp(Q, c, G, h, A, b, n_support):
     x = cp.Variable(n_support)
 
     # Define the objective function
-    objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + x)
-
+    # Inside the solve_qp function
+    objective = cp.Minimize(0.5 * cp.quad_form(x.cpu().detach().numpy(), Q.cpu().detach().numpy()) + x.cpu().detach().numpy())
     # Define the constraints
     # constraints = [G @ x <= h, A @ x == b]
     constraints = [A @ x == b]
