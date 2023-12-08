@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
-from helpers import solve_qp
+from methods.helpers import solve_qp
 
 class DifferentiableSVM(nn.Module):
     def __init__(self, num_features, num_classes):
