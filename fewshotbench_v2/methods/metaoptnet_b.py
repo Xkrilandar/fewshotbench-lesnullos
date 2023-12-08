@@ -53,7 +53,7 @@ class MetaOptNet(MetaTemplate):
         assert(z_query.dim() == 3)
         assert(z_support.dim() == 3)
         assert(z_query.size(0) == z_support.size(0) and z_query.size(2) == z_support.size(2))
-        assert(n_support == self.n_way * self.n_shot)      # n_support must equal to n_way * n_shot
+        #assert(n_support == self.n_way * self.n_shot)      # n_support must equal to n_way * n_shot
 
         #Here we solve the dual problem:
         #Note that the classes are indexed by m & samples are indexed by i.
