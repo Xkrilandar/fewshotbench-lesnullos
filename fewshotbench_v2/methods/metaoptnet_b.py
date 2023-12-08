@@ -5,42 +5,10 @@ from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
 from helpers import solve_qp
 
-class DifferentiableSVM(nn.Module):
-    def __init__(self, num_features, num_classes):
-        super(DifferentiableSVM, self).__init__()
-        # Initialize weights and biases for the SVM
-        self.weights = nn.Parameter(torch.randn(num_classes, num_features))
-        self.bias = nn.Parameter(torch.randn(num_classes))
-
-    def forward(self, x):
-        # Linear decision function: Wx + b
-        return torch.matmul(x, self.weights.t()) + self.bias
-
-    def hinge_loss(self, outputs, labels):
-        # Implement hinge loss function for SVM
-        # Note: labels should be +1 or -1
-        hinge_loss = torch.mean(torch.clamp(1 - outputs.t() * labels, min=0))
-        return hinge_loss
-    
-    def multi_class_hinge_loss(self, outputs, labels):
-        # outputs: the scores from the SVM (shape [batch_size, num_classes])
-        # labels: ground truth labels (shape [batch_size])
-        num_classes = outputs.size(1)
-        correct_scores = outputs[torch.arange(num_classes), labels].view(-1, 1)
-        margins = torch.clamp(outputs - correct_scores + 1.0, min=0)
-        margins[torch.arange(len(outputs)), labels] = 0
-        loss = margins.sum() / len(outputs)
-        return loss
-
-    def regularization_loss(self):
-        # L2 regularization loss (optional)
-        reg_loss = torch.norm(self.weights, p=2)
-        return reg_loss
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
-        self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
         self.loss_fn = nn.CrossEntropyLoss()
         self.lambda_reg = 50.0
 
