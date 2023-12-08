@@ -97,7 +97,8 @@ class MetaOptNet(MetaTemplate):
         A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
         b = Variable(torch.zeros(tasks_per_batch, n_support))
         #print (A.size(), b.size())
-        G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
+        # G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
+        G, C, A, b = [x.float().cuda() for x in [G, C, A, b]]
 
         # Solve the following QP to fit SVM:
         #        \hat z =   argmin_z 1/2 z^T G z + e^T z
