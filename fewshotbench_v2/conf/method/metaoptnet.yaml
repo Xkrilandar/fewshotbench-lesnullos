@@ -2,7 +2,7 @@ defaults:
   - meta_base
 
 cls:
-  _target_: methods.metaoptnet.MetaOptNet
+  _target_: methods.metaoptnet_b.MetaOptNet
   num_classes: ${train_classes}
   num_features: 64
 
