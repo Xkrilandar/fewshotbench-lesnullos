@@ -105,7 +105,7 @@ class MetaOptNet(MetaTemplate):
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
         #qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
-        qp_sol = solve_qp(G, dummy.detach(), C.detach(), dummy.detach(), A.detach(), b.detach())
+        qp_sol = solve_qp(G, dummy.detach(), C.detach(), dummy.detach(), A.detach(), b.detach(), n_support)
 
         # Compute the classification score.
         compatibility = computeGramMatrix(z_support, z_query)
@@ -175,15 +175,17 @@ def one_hot(indices, depth):
     return encoded_indicies
 
 
-def solve_qp(Q, c, G, h, A, b):
+def solve_qp(Q, c, G, h, A, b, n_support):
     # Create a variable to optimize
-    x = cp.Variable(len(c))
+    # x = cp.Variable(len(c))
+    x = cp.Variable(n_support)
 
     # Define the objective function
-    objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + c.T @ x)
+    objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + x)
 
     # Define the constraints
-    constraints = [G @ x <= h, A @ x == b]
+    # constraints = [G @ x <= h, A @ x == b]
+    constraints = [A @ x == b]
 
     # Define the problem and solve it
     prob = cp.Problem(objective, constraints)
