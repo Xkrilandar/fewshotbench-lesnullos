@@ -77,7 +77,7 @@ class MetaOptNet(MetaTemplate):
         # support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         # support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
-        # G = block_kernel_matrix
+        G = block_kernel_matrix
         # e = -1.0 * support_labels_one_hot
         dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
         #print (G.size())
