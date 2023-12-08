@@ -1,7 +1,6 @@
 import cvxpy as cp
 import numpy as np
 
-
 def solve_qp(Q, c, G, h, A, b):
     # Create a variable to optimize
     x = cp.Variable(len(c))
@@ -31,23 +30,35 @@ def train_svm(Q, p, G, h, A, b):
 def svm_qp_formulation(X, y, C):
     n_samples, n_features = X.shape
 
-    # Construct the QP parameters
-    Q = np.zeros((n_features + 1, n_features + 1))
-    Q[:n_features, :n_features] = np.eye(n_features)  # w part
+    # Extend Q for slack variables
+    # Changed: The Q matrix should be square with size equal to n_features + n_samples
+    Q = np.zeros((n_features + n_samples, n_features + n_samples))
+    Q[:n_features, :n_features] = np.eye(n_features)
 
-    p = np.hstack([np.zeros(n_features), C * np.ones(n_samples)])  # slack variables
+    # Changed: p should be a vector of length n_features + n_samples
+    p = np.hstack([np.zeros(n_features), C * np.ones(n_samples)])
 
+    # Construct G matrix
+    # Changed: Ensure the G matrix has correct dimensions
     tmp1 = np.diag(y) @ X
     tmp2 = np.ones((n_samples, 1))
-    G = np.hstack([-tmp1, -tmp2, -np.eye(n_samples)])
-    G = np.vstack([G, np.hstack([np.zeros((n_samples, n_features + 1)), -np.eye(n_samples)])])
+    G_top = np.hstack([-tmp1, -tmp2, -np.eye(n_samples)])
+    G_bottom = np.hstack([np.zeros((n_samples, n_features + 1)), -np.eye(n_samples)])
+    G = np.vstack([G_top, G_bottom])
 
+    # Construct h vector
     h = np.hstack([-np.ones(n_samples), np.zeros(n_samples)])
 
-    A = np.zeros((1, n_features + 1 + n_samples))
+    # Construct A matrix and b vector
+    # Changed: Ensure A and b have correct dimensions
+    A = np.zeros((1, n_features + n_samples))
     b = np.zeros(1)
 
     return Q, p, G, h, A, b
+
+# Continue with the rest of your functions and testing script...
+
+
 
 # # Example usage
 # C = 1.0  # Regularization parameter

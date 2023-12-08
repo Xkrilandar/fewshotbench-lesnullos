@@ -21,6 +21,16 @@ class DifferentiableSVM(nn.Module):
         # Note: labels should be +1 or -1
         hinge_loss = torch.mean(torch.clamp(1 - outputs.t() * labels, min=0))
         return hinge_loss
+    
+    def multi_class_hinge_loss(self, outputs, labels):
+        # outputs: the scores from the SVM (shape [batch_size, num_classes])
+        # labels: ground truth labels (shape [batch_size])
+        num_classes = outputs.size(1)
+        correct_scores = outputs[torch.arange(num_classes), labels].view(-1, 1)
+        margins = torch.clamp(outputs - correct_scores + 1.0, min=0)
+        margins[torch.arange(len(outputs)), labels] = 0
+        loss = margins.sum() / len(outputs)
+        return loss
 
     def regularization_loss(self):
         # L2 regularization loss (optional)
