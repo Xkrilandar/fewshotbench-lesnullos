@@ -5,32 +5,32 @@ from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
 import cvxpy as cp
 
-class DifferentiableSVM(nn.Module):
-    def __init__(self, num_features, num_classes):
-        super(DifferentiableSVM, self).__init__()
-        # Initialize weights and biases for the SVM
-        self.weights = nn.Parameter(torch.randn(num_classes, num_features))
-        self.bias = nn.Parameter(torch.randn(num_classes))
+# class DifferentiableSVM(nn.Module):
+#     def __init__(self, num_features, num_classes):
+#         super(DifferentiableSVM, self).__init__()
+#         # Initialize weights and biases for the SVM
+#         self.weights = nn.Parameter(torch.randn(num_classes, num_features))
+#         self.bias = nn.Parameter(torch.randn(num_classes))
 
-    def forward(self, x):
-        # Linear decision function: Wx + b
-        return torch.matmul(x, self.weights.t()) + self.bias
+#     def forward(self, x):
+#         # Linear decision function: Wx + b
+#         return torch.matmul(x, self.weights.t()) + self.bias
 
-    def hinge_loss(self, outputs, labels):
-        # Implement hinge loss function for SVM
-        # Note: labels should be +1 or -1
-        hinge_loss = torch.mean(torch.clamp(1 - outputs.t() * labels, min=0))
-        return hinge_loss
+#     def hinge_loss(self, outputs, labels):
+#         # Implement hinge loss function for SVM
+#         # Note: labels should be +1 or -1
+#         hinge_loss = torch.mean(torch.clamp(1 - outputs.t() * labels, min=0))
+#         return hinge_loss
 
-    def regularization_loss(self):
-        # L2 regularization loss (optional)
-        reg_loss = torch.norm(self.weights, p=2)
-        return reg_loss
+#     def regularization_loss(self):
+#         # L2 regularization loss (optional)
+#         reg_loss = torch.norm(self.weights, p=2)
+#         return reg_loss
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
-        self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
+        #self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
         self.loss_fn = nn.CrossEntropyLoss()
         self.C_reg = 0.01
 
@@ -73,12 +73,13 @@ class MetaOptNet(MetaTemplate):
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         
-        support_labels_one_hot = one_hot(support_labels.view(tasks_per_batch * n_support), self.n_way) # (tasks_per_batch * n_support, n_support)
-        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
-        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
+        # support_labels_one_hot = one_hot(support_labels.view(tasks_per_batch * n_support), self.n_way) # (tasks_per_batch * n_support, n_support)
+        # support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
+        # support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
-        G = block_kernel_matrix
-        e = -1.0 * support_labels_one_hot
+        # G = block_kernel_matrix
+        # e = -1.0 * support_labels_one_hot
+        dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
         #print (G.size())
         #This part is for the inequality constraints:
         #\alpha^m_i <= C^m_i \forall m,i
@@ -86,7 +87,8 @@ class MetaOptNet(MetaTemplate):
         #C^m_i = 0 if m != y_i.
         id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
         C = Variable(id_matrix_1)
-        h = Variable(self.C_reg * support_labels_one_hot)
+        # h = Variable(self.C_reg * support_labels_one_hot)
+
         #print (C.size(), h.size())
         #This part is for the equality constraints:
         #\sum_m \alpha^m_i=0 \forall i
@@ -102,7 +104,7 @@ class MetaOptNet(MetaTemplate):
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
         #qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
-        qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
+        qp_sol = solve_qp(G, dummy.detach(), C.detach(), dummy.detach(), A.detach(), b.detach())
 
         # Compute the classification score.
         compatibility = computeGramMatrix(z_support, z_query)

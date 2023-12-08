@@ -7,4 +7,4 @@ cls:
   num_features: 64
 
 
-name: protonet
+name: metaoptnet
