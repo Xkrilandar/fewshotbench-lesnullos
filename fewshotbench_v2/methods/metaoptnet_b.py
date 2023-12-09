@@ -82,7 +82,6 @@ class MetaOptNet(MetaTemplate):
         
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
-        dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
         #print (G.size())
         #This part is for the inequality constraints:
         #\alpha^m_i <= C^m_i \forall m,i
@@ -95,7 +94,7 @@ class MetaOptNet(MetaTemplate):
         #print (C.size(), h.size())
         #This part is for the equality constraints:
         #\sum_m \alpha^m_i=0 \forall i
-        id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
+        id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support)#.cuda()
 
         A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
         b = Variable(torch.zeros(tasks_per_batch, n_support))
