@@ -123,6 +123,9 @@ class MetaOptNet(MetaTemplate):
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
 
+        # Reshape logits to the desired shape
+        logits = logits.view(-1, self.n_way)
+
         return logits
 
     def set_forward_loss(self, x, y):
@@ -130,11 +133,8 @@ class MetaOptNet(MetaTemplate):
         y_query = Variable(y_query.cuda())
 
         scores = self.set_forward(x, y)
-        print("scores", scores.shape)
-        scores = scores.reshape(75, 5)
-        print("query", y_query.shape)
+        
         ret = self.loss_fn(scores, y_query)
-        print(ret.shape)
         return ret
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
