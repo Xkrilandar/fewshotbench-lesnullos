@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
 import cvxpy as cp
+import wandb
 
 # class DifferentiableSVM(nn.Module):
 #     def __init__(self, num_features, num_classes):
@@ -35,7 +36,7 @@ class MetaOptNet(MetaTemplate):
         self.C_reg = 0.01
 
 
-    def set_forward(self, x, is_feature=False):
+    def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
 
         # z_support = z_support.contiguous()
@@ -73,12 +74,13 @@ class MetaOptNet(MetaTemplate):
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         
-        # support_labels_one_hot = one_hot(support_labels.view(tasks_per_batch * n_support), self.n_way) # (tasks_per_batch * n_support, n_support)
-        # support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
-        # support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
+        support_labels = y # ??? OU PAS
+        support_labels_one_hot = one_hot(support_labels.view(tasks_per_batch * n_support), self.n_way) # (tasks_per_batch * n_support, n_support)
+        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
+        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
         G = block_kernel_matrix
-        # e = -1.0 * support_labels_one_hot
+        e = -1.0 * support_labels_one_hot
         dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
         #print (G.size())
         #This part is for the inequality constraints:
@@ -87,7 +89,7 @@ class MetaOptNet(MetaTemplate):
         #C^m_i = 0 if m != y_i.
         id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
         C = Variable(id_matrix_1)
-        # h = Variable(self.C_reg * support_labels_one_hot)
+        h = Variable(self.C_reg * support_labels_one_hot)
 
         #print (C.size(), h.size())
         #This part is for the equality constraints:
@@ -97,15 +99,14 @@ class MetaOptNet(MetaTemplate):
         A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
         b = Variable(torch.zeros(tasks_per_batch, n_support))
         #print (A.size(), b.size())
-        # G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
-        G, C, A, b = [x.float().cuda() for x in [G, C, A, b]]
+        G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
 
         # Solve the following QP to fit SVM:
         #        \hat z =   argmin_z 1/2 z^T G z + e^T z
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
         #qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
-        qp_sol = solve_qp(G, dummy.detach(), C.detach(), dummy.detach(), A.detach(), b.detach(), n_support)
+        qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
 
         # Compute the classification score.
         compatibility = computeGramMatrix(z_support, z_query)
@@ -118,26 +119,56 @@ class MetaOptNet(MetaTemplate):
 
         return logits
 
-    def set_forward_loss(self, x):
+    def set_forward_loss(self, x, y):
         y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
         y_query = Variable(y_query.cuda())
 
-        scores = self.set_forward(x)
+        scores = self.set_forward(x, y)
         return self.loss_fn(scores, y_query)
     
+    def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
+        print_freq = 10
+        avg_loss = 0
+        task_count = 0
+        loss_all = []
+        optimizer.zero_grad()
 
-def euclidean_dist( x, y):
-    # x: N x D
-    # y: M x D
-    n = x.size(0)
-    m = y.size(0)
-    d = x.size(1)
-    assert d == y.size(1)
+        # train
+        for i, (x, y) in enumerate(train_loader):
+            if isinstance(x, list):
+                self.n_query = x[0].size(1) - self.n_support
+                if self.change_way:
+                    self.n_way = x[0].size(0)
+                # assert self.n_way == x[0].size(
+                #     0), f"MAML do not support way change, n_way is {self.n_way} but x.size(0) is {x.size(0)}"
+            else:
+                self.n_query = x.size(1) - self.n_support
+                if self.change_way:
+                    self.n_way = x.size(0)  
+                # assert self.n_way == x.size(
+                #     0), f"MAML do not support way change, n_way is {self.n_way} but x.size(0) is {x.size(0)}"
 
-    x = x.unsqueeze(1).expand(n, m, d)
-    y = y.unsqueeze(0).expand(n, m, d)
+            # Labels are assigned later if classification task
+            # if self.type == "classification":
+            #     y = None
 
-    return torch.pow(x - y, 2).sum(2)
+            loss = self.set_forward_loss(x, y)
+            # loss_all.append(loss)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            avg_loss = avg_loss + loss.item()
+
+            if i % print_freq == 0:
+                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader),
+                                                                        avg_loss / float(i + 1)))
+                wandb.log({'loss/train': avg_loss / float(i + 1)})
+    
+
+
+
+
 
 def computeGramMatrix(A, B):
     """
@@ -156,6 +187,29 @@ def computeGramMatrix(A, B):
 
     return torch.bmm(A, B.transpose(1,2))
 
+def solve_qp(Q, c, G, h, A, b, n_support):
+    # Create a variable to optimize
+    # x = cp.Variable(len(c))
+    x = cp.Variable(n_support)
+
+    # Define the objective function
+    objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + x)
+
+    # Define the constraints
+    # constraints = [G @ x <= h, A @ x == b]
+    constraints = [A @ x == b]
+
+    # Define the problem and solve it
+    prob = cp.Problem(objective, constraints)
+    prob.solve()
+
+    return x.value
+
+def batched_kronecker(matrix1, matrix2):
+    matrix1_flatten = matrix1.reshape(matrix1.size()[0], -1)
+    matrix2_flatten = matrix2.reshape(matrix2.size()[0], -1)
+    return torch.bmm(matrix1_flatten.unsqueeze(2), matrix2_flatten.unsqueeze(1)).reshape([matrix1.size()[0]] + list(matrix1.size()[1:]) + list(matrix2.size()[1:])).permute([0, 1, 3, 2, 4]).reshape(matrix1.size(0), matrix1.size(1) * matrix2.size(1), matrix1.size(2) * matrix2.size(2))
+
 
 def one_hot(indices, depth):
     """
@@ -173,30 +227,3 @@ def one_hot(indices, depth):
     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
     return encoded_indicies
-
-
-def solve_qp(Q, c, G, h, A, b, n_support):
-    # Create a variable to optimize
-    # x = cp.Variable(len(c))
-    x = cp.Variable(n_support)
-
-    # Define the objective function
-    # Inside the solve_qp function
-    objective = cp.Minimize(0.5 * cp.quad_form(x.cpu().detach().numpy(), Q.cpu().detach().numpy()) + x.cpu().detach().numpy())
-    # Define the constraints
-    # constraints = [G @ x <= h, A @ x == b]
-    constraints = [A @ x == b]
-
-    # Define the problem and solve it
-    prob = cp.Problem(objective, constraints)
-    prob.solve()
-
-    return x.value
-
-def batched_kronecker(matrix1, matrix2):
-    matrix1_flatten = matrix1.reshape(matrix1.size()[0], -1)
-    matrix2_flatten = matrix2.reshape(matrix2.size()[0], -1)
-    return torch.bmm(matrix1_flatten.unsqueeze(2), matrix2_flatten.unsqueeze(1)).reshape([matrix1.size()[0]] + list(matrix1.size()[1:]) + list(matrix2.size()[1:])).permute([0, 1, 3, 2, 4]).reshape(matrix1.size(0), matrix1.size(1) * matrix2.size(1), matrix1.size(2) * matrix2.size(2))
-
-
-
