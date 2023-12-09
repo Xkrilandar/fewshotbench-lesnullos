@@ -5,7 +5,6 @@ from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
 from qpth.qp import QPFunction
 import cvxpy as cp
-import wandb
 
 # class DifferentiableSVM(nn.Module):
 #     def __init__(self, num_features, num_classes):
@@ -112,7 +111,7 @@ class MetaOptNet(MetaTemplate):
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
         max_iter = 15
-        qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach()
+        qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
 
         # Compute the classification score.
