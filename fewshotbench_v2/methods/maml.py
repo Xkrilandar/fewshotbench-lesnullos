@@ -106,6 +106,9 @@ class MAML(MetaTemplate):
         if torch.cuda.is_available():
             y_b_i = y_b_i.cuda()
 
+        print("y_b_i", y_b_i.size())
+        print("scores", scores.size())
+        y_b_i = y_var
         loss = self.loss_fn(scores, y_b_i)
 
         return loss
