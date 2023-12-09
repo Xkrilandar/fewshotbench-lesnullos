@@ -130,7 +130,9 @@ class MetaOptNet(MetaTemplate):
         y_query = Variable(y_query.cuda())
 
         scores = self.set_forward(x, y)
-        return self.loss_fn(scores, y_query)
+        ret = self.loss_fn(scores, y_query)
+        print(ret.shape)
+        return ret
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
         print_freq = 10

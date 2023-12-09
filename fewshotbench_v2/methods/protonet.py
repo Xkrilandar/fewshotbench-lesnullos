@@ -31,7 +31,9 @@ class ProtoNet(MetaTemplate):
 
         scores = self.set_forward(x)
 
-        return self.loss_fn(scores, y_query )
+        ret = self.loss_fn(scores, y_query )
+        print(ret.shape)
+        return ret
 
 
 def euclidean_dist( x, y):
