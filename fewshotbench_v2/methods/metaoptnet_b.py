@@ -130,9 +130,10 @@ class MetaOptNet(MetaTemplate):
     def set_forward_loss(self, x, y):
         y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
         y_query = Variable(y_query.cuda())
-        print(scores)
-        print(y_query)
+        
         scores = self.set_forward(x, y)
+        print("scores", scores)
+        print("y_query", y_query)
         ret = self.loss_fn(scores, y_query)
         return ret
     
