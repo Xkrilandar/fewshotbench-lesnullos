@@ -131,6 +131,7 @@ class MetaOptNet(MetaTemplate):
 
         scores = self.set_forward(x, y)
         print("scores", scores.shape)
+        scores = scores.reshape(75, 5)
         print("query", y_query.shape)
         ret = self.loss_fn(scores, y_query)
         print(ret.shape)
