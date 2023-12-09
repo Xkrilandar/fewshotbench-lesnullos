@@ -5,6 +5,7 @@ from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
 from qpth.qp import QPFunction
 import cvxpy as cp
+import wandb
 
 # class DifferentiableSVM(nn.Module):
 #     def __init__(self, num_features, num_classes):
