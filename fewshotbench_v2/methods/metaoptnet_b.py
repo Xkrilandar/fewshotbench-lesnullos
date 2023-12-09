@@ -77,6 +77,7 @@ class MetaOptNet(MetaTemplate):
         
         support_labels = y_support # ??? OU PAS
         print(support_labels)
+        print(self.n_way)
         support_labels_one_hot = one_hot(support_labels.reshape(tasks_per_batch * n_support), self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
