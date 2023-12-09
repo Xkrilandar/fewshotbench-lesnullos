@@ -127,15 +127,17 @@ class MetaOptNet(MetaTemplate):
         return logits
 
     def set_forward_loss(self, x, y):
-        # y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
-        # y_query = Variable(y_query.cuda())
-        y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query * self.n_way // self.n_way))
-        y_query = y_query.view(self.n_way, self.n_query, -1)  # Reshape to [5, 15, 5]
+        y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
         y_query = Variable(y_query.cuda())
+        # y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query * self.n_way // self.n_way))
+        # y_query = y_query.view(self.n_way, self.n_query, -1)  # Reshape to [5, 15, 5]
+        # y_query = Variable(y_query.cuda())
+
 
 
 
         scores = self.set_forward(x, y)
+        scores = scores.view(self.n_query * self.n_way, -1)
         print("y_query", y_query.size())
         print("scores", scores.size())
         return self.loss_fn(scores, y_query)
