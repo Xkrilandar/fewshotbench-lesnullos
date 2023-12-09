@@ -75,13 +75,18 @@ class MetaOptNet(MetaTemplate):
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         
-        support_labels = y_support # ??? OU PAS
-        support_labels_one_hot = one_hot(support_labels.reshape(tasks_per_batch * n_support), self.n_way) # (tasks_per_batch * n_support, n_support)
+        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        print(original_labels)
+        label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
+        support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
+        print(support_labels)
+        support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
+        dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
         #print (G.size())
         #This part is for the inequality constraints:
         #\alpha^m_i <= C^m_i \forall m,i
@@ -94,7 +99,7 @@ class MetaOptNet(MetaTemplate):
         #print (C.size(), h.size())
         #This part is for the equality constraints:
         #\sum_m \alpha^m_i=0 \forall i
-        id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support)#.cuda()
+        id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
 
         A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
         b = Variable(torch.zeros(tasks_per_batch, n_support))
@@ -226,6 +231,7 @@ def one_hot(indices, depth):
 
     encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
     index = indices.view(indices.size()+torch.Size([1]))
-    encoded_indicies = encoded_indicies.scatter_(1,index.long(),1)
+    print(index)
+    encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
     return encoded_indicies
