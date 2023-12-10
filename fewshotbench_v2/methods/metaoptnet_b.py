@@ -52,12 +52,12 @@ class MetaOptNet(MetaTemplate):
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         #print("original_labels", original_labels.size())
         #print("y_query", y_query.size())
-        y_query = y_query.reshape(tasks_per_batch * n_query)
+        # y_query = y_query.reshape(tasks_per_batch * n_query)
         #print("y_query", y_query.size())
 
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
-        query_labels = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
+        # query_labels = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
@@ -101,7 +101,7 @@ class MetaOptNet(MetaTemplate):
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
 
-        return logits, query_labels
+        return logits
 
     def set_forward_loss(self, x, y):
         y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
@@ -115,7 +115,7 @@ class MetaOptNet(MetaTemplate):
 
         # scores = self.set_forward(x, y)
         # scores = scores.view(self.n_query * self.n_way, -1)
-        logits, _ = self.set_forward(x, y)
+        logits = self.set_forward(x, y)
 
         
         return logits, y_query
