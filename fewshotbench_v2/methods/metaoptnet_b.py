@@ -133,8 +133,7 @@ class MetaOptNet(MetaTemplate):
         y_query = Variable(y_query.cuda())
         
         scores = self.set_forward(x, y)
-        print("scores", scores)
-        print("y_query", y_query)
+
         ret = self.loss_fn(scores, y_query)
         return ret
     
