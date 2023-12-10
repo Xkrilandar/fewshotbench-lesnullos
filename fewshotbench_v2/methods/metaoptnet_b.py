@@ -3,9 +3,10 @@ import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
-from qpth.qp import QPFunction
 import cvxpy as cp
 import wandb
+from qpth.qp import QPFunction
+import torch.nn.functional as F
 
 # class DifferentiableSVM(nn.Module):
 #     def __init__(self, num_features, num_classes):
@@ -75,8 +76,7 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
-        print("y_support",y_support)
-        print("y", y)
+        
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
@@ -123,20 +123,26 @@ class MetaOptNet(MetaTemplate):
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
 
-        # Reshape logits to the desired shape
-        logits = logits.view(-1, self.n_way)
-
-        return logits
+        return logits, y_query
 
     def set_forward_loss(self, x, y):
         y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
         y_query = Variable(y_query.cuda())
+        # y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query * self.n_way // self.n_way))
+        # y_query = y_query.view(self.n_way, self.n_query, -1)  # Reshape to [5, 15, 5]
+        # y_query = Variable(y_query.cuda())
+
+
+
+
+        # scores = self.set_forward(x, y)
+        # scores = scores.view(self.n_query * self.n_way, -1)
+        logits, y_query = self.set_forward(x, y)
+
         
-        scores = self.set_forward(x, y)
-        print("scores", scores)
-        print("y_query", y_query)
-        ret = self.loss_fn(scores, y_query)
-        return ret
+        return logits, y_query
+
+        # return self.loss_fn(scores, y_query)
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
         print_freq = 10
@@ -149,6 +155,7 @@ class MetaOptNet(MetaTemplate):
         for i, (x, y) in enumerate(train_loader):
             if isinstance(x, list):
                 self.n_query = x[0].size(1) - self.n_support
+                
                 if self.change_way:
                     self.n_way = x[0].size(0)
                 # assert self.n_way == x[0].size(
@@ -164,7 +171,14 @@ class MetaOptNet(MetaTemplate):
             # if self.type == "classification":
             #     y = None
 
-            loss = self.set_forward_loss(x, y)
+            logits, y_query = self.set_forward_loss(x, y)
+            smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
+            eps = 0
+            smoothed_one_hot = smoothed_one_hot * (1 - eps) + (1 - smoothed_one_hot) * eps / (self.n_way - 1)
+
+            log_prb = F.log_softmax(logits.reshape(-1, self.n_way), dim=1)
+            loss = -(smoothed_one_hot * log_prb).sum(dim=1)
+            loss = loss.mean()
             # loss_all.append(loss)
 
             optimizer.zero_grad()
@@ -176,6 +190,60 @@ class MetaOptNet(MetaTemplate):
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader),
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
+    
+    def test_loop(self, test_loader, record=None, return_std=False):
+        correct = 0
+        count = 0
+        acc_all = []
+
+        iter_num = len(test_loader)
+        for i, (x, y) in enumerate(test_loader):
+            if isinstance(x, list):
+                self.n_query = x[0].size(1) - self.n_support
+                if self.change_way:
+                    self.n_way = x[0].size(0)
+            else: 
+                self.n_query = x.size(1) - self.n_support
+                if self.change_way:
+                    self.n_way = x.size(0)
+            logits, y_query = self.set_forward(x, y)
+
+            # smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
+            # eps = 0
+            # smoothed_one_hot = smoothed_one_hot * (1 - eps) + (1 - smoothed_one_hot) * eps / (self.n_way - 1)
+
+            # log_prb = F.log_softmax(logits.reshape(-1, self.n_way), dim=1)
+            # loss = -(smoothed_one_hot * log_prb).sum(dim=1)
+            # loss = loss.mean()
+            acc = self.count_accuracy(logits.reshape(-1, self.n_way), y_query.reshape(-1))
+
+            # correct_this, count_this = self.correct(x, y)
+            acc_all.append(acc)
+
+        acc_all = np.asarray(acc_all)
+        acc_mean = np.mean(acc_all)
+        acc_std = np.std(acc_all)
+        print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
+
+        if return_std:
+            return acc_mean, acc_std
+        else:
+            return acc_mean
+        
+    # def correct(self, x, y):
+    #     scores = self.set_forward(x, y)
+    #     y_query = np.repeat(range(self.n_way), self.n_query)
+
+    #     topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
+    #     topk_ind = topk_labels.cpu().numpy()
+    #     top1_correct = np.sum(topk_ind[:, 0] == y_query)
+    #     return float(top1_correct), len(y_query)
+    
+    def count_accuracy(logits, label):
+        pred = torch.argmax(logits, dim=1).view(-1)
+        label = label.view(-1)
+        accuracy = 100 * pred.eq(label).float().mean()
+        return accuracy
 
 
     
@@ -201,23 +269,23 @@ def computeGramMatrix(A, B):
 
     return torch.bmm(A, B.transpose(1,2))
 
-def solve_qp(Q, c, G, h, A, b, n_support):
-    # Create a variable to optimize
-    # x = cp.Variable(len(c))
-    x = cp.Variable(n_support)
+# def solve_qp(Q, c, G, h, A, b, n_support):
+#     # Create a variable to optimize
+#     # x = cp.Variable(len(c))
+#     x = cp.Variable(n_support)
 
-    # Define the objective function
-    objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + x)
+#     # Define the objective function
+#     objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + x)
 
-    # Define the constraints
-    # constraints = [G @ x <= h, A @ x == b]
-    constraints = [A @ x == b]
+#     # Define the constraints
+#     # constraints = [G @ x <= h, A @ x == b]
+#     constraints = [A @ x == b]
 
-    # Define the problem and solve it
-    prob = cp.Problem(objective, constraints)
-    prob.solve()
+#     # Define the problem and solve it
+#     prob = cp.Problem(objective, constraints)
+#     prob.solve()
 
-    return x.value
+#     return x.value
 
 def batched_kronecker(matrix1, matrix2):
     matrix1_flatten = matrix1.reshape(matrix1.size()[0], -1)
@@ -238,7 +306,7 @@ def one_hot(indices, depth):
 
     encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
     index = indices.view(indices.size()+torch.Size([1]))
-    print(index)
+    index = index.to(torch.int64).cuda()
     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
     return encoded_indicies
