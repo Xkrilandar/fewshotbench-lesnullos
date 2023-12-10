@@ -228,7 +228,7 @@ class MetaOptNet(MetaTemplate):
             acc = self.count_accuracy(logits.reshape(-1, self.n_way), y_query.reshape(-1))
 
             # correct_this, count_this = self.correct(x, y)
-            acc_all.append(acc)
+            acc_all.append(acc.cpu())
 
         acc_all = np.asarray(acc_all)
         acc_mean = np.mean(acc_all)
