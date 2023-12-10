@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import wandb
 from torch.autograd import Variable
+import sys
 
 from backbones.blocks import Linear_fw
 from methods.meta_template import MetaTemplate
@@ -106,6 +107,8 @@ class MAML(MetaTemplate):
         if torch.cuda.is_available():
             y_b_i = y_b_i.cuda()
 
+        print("scores", scores)
+        sys.exit()
         loss = self.loss_fn(scores, y_b_i)
 
         return loss
@@ -133,6 +136,7 @@ class MAML(MetaTemplate):
                 y = None
 
             loss = self.set_forward_loss(x, y)
+
             avg_loss = avg_loss + loss.item()
             loss_all.append(loss)
 
