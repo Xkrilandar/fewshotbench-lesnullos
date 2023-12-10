@@ -174,6 +174,15 @@ class MetaOptNet(MetaTemplate):
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
+    def correct(self, x, y):
+        scores = self.set_forward(x, y)
+        y_query = np.repeat(range(self.n_way), self.n_query)
+
+        topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
+        topk_ind = topk_labels.cpu().numpy()
+        top1_correct = np.sum(topk_ind[:, 0] == y_query)
+        return float(top1_correct), len(y_query)
+    
     def test_loop(self, test_loader, record=None, return_std=False):
         correct = 0
         count = 0
@@ -189,19 +198,8 @@ class MetaOptNet(MetaTemplate):
                 self.n_query = x.size(1) - self.n_support
                 if self.change_way:
                     self.n_way = x.size(0)
-            logits, y_query = self.set_forward(x, y)
-
-            # smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
-            # eps = 0
-            # smoothed_one_hot = smoothed_one_hot * (1 - eps) + (1 - smoothed_one_hot) * eps / (self.n_way - 1)
-
-            # log_prb = F.log_softmax(logits.reshape(-1, self.n_way), dim=1)
-            # loss = -(smoothed_one_hot * log_prb).sum(dim=1)
-            # loss = loss.mean()
-            acc = self.count_accuracy(logits.reshape(-1, self.n_way), y_query.reshape(-1))
-
-            # correct_this, count_this = self.correct(x, y)
-            acc_all.append(acc.cpu())
+            correct_this, count_this = self.correct(x, y)
+            acc_all.append(correct_this / count_this * 100)
 
         acc_all = np.asarray(acc_all)
         acc_mean = np.mean(acc_all)
@@ -212,8 +210,6 @@ class MetaOptNet(MetaTemplate):
             return acc_mean, acc_std
         else:
             return acc_mean
-    
-
 
 
 
