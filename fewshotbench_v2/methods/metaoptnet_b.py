@@ -131,7 +131,7 @@ class MetaOptNet(MetaTemplate):
         _, y_query = self.parse_feature(y, True)
         
         scores = self.set_forward(x, y)
-
+        print(f"scores are of shape {scores.shape} and y_query of shape {y_query.shape}")
         ret = self.loss_fn(scores, y_query)
         return ret
     
