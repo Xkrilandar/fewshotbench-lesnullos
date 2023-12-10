@@ -249,7 +249,7 @@ class MetaOptNet(MetaTemplate):
     #     top1_correct = np.sum(topk_ind[:, 0] == y_query)
     #     return float(top1_correct), len(y_query)
     
-    def count_accuracy(logits, label):
+    def count_accuracy(self, logits, label):
         pred = torch.argmax(logits, dim=1).view(-1)
         label = label.view(-1)
         accuracy = 100 * pred.eq(label).float().mean()
