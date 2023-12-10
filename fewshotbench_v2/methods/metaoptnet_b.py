@@ -86,6 +86,7 @@ class MetaOptNet(MetaTemplate):
 
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
+        query_labels = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
@@ -129,7 +130,7 @@ class MetaOptNet(MetaTemplate):
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
 
-        return logits, y_query
+        return logits, query_labels
 
     def set_forward_loss(self, x, y):
         y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
