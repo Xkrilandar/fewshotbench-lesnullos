@@ -197,6 +197,8 @@ class MetaOptNet(MetaTemplate):
             # log_prb = F.log_softmax(logits.reshape(-1, self.n_way), dim=1)
             # loss = -(smoothed_one_hot * log_prb).sum(dim=1)
             # loss = loss.mean()
+            y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
+            y_query = Variable(y_query.cuda())
             acc = self.count_accuracy(logits.reshape(-1, self.n_way), y_query.reshape(-1))
 
             # correct_this, count_this = self.correct(x, y)
