@@ -121,7 +121,7 @@ class MetaOptNet(MetaTemplate):
         logits = torch.sum(logits, 1)
 
         # Reshape logits to the desired shape
-        logits = logits.view(-1, self.n_way)
+        #logits = logits.view(-1, self.n_way)
 
         return logits
 
