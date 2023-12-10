@@ -18,7 +18,7 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
-        y_support, y_query = self.parse_feature(y, True)
+        #y_support, y_query = self.parse_feature(y, True)
 
         tasks_per_batch = z_query.size(0)
         n_support = z_support.size(1)
@@ -48,6 +48,7 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         
         #print("y_support", y_support.size())
+        y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)))
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         #print("original_labels", original_labels.size())
         #print("y_query", y_query.size())
@@ -114,7 +115,7 @@ class MetaOptNet(MetaTemplate):
 
         # scores = self.set_forward(x, y)
         # scores = scores.view(self.n_query * self.n_way, -1)
-        logits, y_query = self.set_forward(x, y)
+        logits, _ = self.set_forward(x, y)
 
         
         return logits, y_query
