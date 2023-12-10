@@ -22,3 +22,5 @@ dataclasses-json
 dataclasses
 torch_geometric
 biopython
+cvxpy
+qpth
