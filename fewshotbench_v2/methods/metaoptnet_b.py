@@ -68,7 +68,6 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        print("y00000000000000000000000000000000000000000000000", self.n_way)
         kernel_matrix = computeGramMatrix(z_support, z_support)
 
         id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
@@ -77,6 +76,7 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
+        back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
@@ -122,7 +122,7 @@ class MetaOptNet(MetaTemplate):
         logits = torch.sum(logits, 1)
 
         # Reshape logits to the desired shape
-        #logits = logits.view(-1, self.n_way)
+        logits = logits.view(-1, self.n_way)
 
         return logits
 
