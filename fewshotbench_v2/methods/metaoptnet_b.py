@@ -16,7 +16,7 @@ class MetaOptNet(MetaTemplate):
         self.C_reg = 0.01
 
 
-    def set_forward(self, x, y, is_feature=False):
+    def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
         #y_support, y_query = self.parse_feature(y, True)
 
@@ -103,7 +103,7 @@ class MetaOptNet(MetaTemplate):
 
         return logits
 
-    def set_forward_loss(self, x, y):
+    def set_forward_loss(self, x):
         y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
         y_query = Variable(y_query.cuda())
         # y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query * self.n_way // self.n_way))
@@ -115,7 +115,7 @@ class MetaOptNet(MetaTemplate):
 
         # scores = self.set_forward(x, y)
         # scores = scores.view(self.n_query * self.n_way, -1)
-        logits = self.set_forward(x, y)
+        logits = self.set_forward(x)
 
         
         return logits, y_query
@@ -149,7 +149,7 @@ class MetaOptNet(MetaTemplate):
             # if self.type == "classification":
             #     y = None
 
-            logits, y_query = self.set_forward_loss(x, y)
+            logits, y_query = self.set_forward_loss(x)
 
             
             label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
@@ -188,7 +188,7 @@ class MetaOptNet(MetaTemplate):
                 self.n_query = x.size(1) - self.n_support
                 if self.change_way:
                     self.n_way = x.size(0)
-            logits, y_query = self.set_forward(x, y)
+            logits, y_query = self.set_forward(x)
 
             # smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
             # eps = 0
