@@ -81,7 +81,7 @@ class MetaOptNet(MetaTemplate):
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         print("original_labels", original_labels.size())
         print("y_query", y_query.size())
-        y_query = y_query.reshape(tasks_per_batch * n_support)
+        y_query = y_query.reshape(tasks_per_batch * n_query)
         print("y_query", y_query.size())
 
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
