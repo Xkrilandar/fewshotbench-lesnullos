@@ -188,7 +188,7 @@ class MetaOptNet(MetaTemplate):
                 self.n_query = x.size(1) - self.n_support
                 if self.change_way:
                     self.n_way = x.size(0)
-            logits, y_query = self.set_forward(x)
+            logits = self.set_forward(x)
 
             # smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
             # eps = 0
