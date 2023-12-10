@@ -130,7 +130,7 @@ class MetaOptNet(MetaTemplate):
         _, y_query = self.parse_feature(y, True)
         scores = self.set_forward(x, y)
         print("bbbbbbbbbbbbbbbbbbbbbbb", scores.shape)
-        y_query = y_query.reshape(-1, self.n_way)
+        y_query = y_query.reshape(-1)
         print("ahhhhhhhhhhhhhh", y_query.shape)
         ret = self.loss_fn(scores, y_query)
         return ret
