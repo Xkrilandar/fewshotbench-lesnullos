@@ -129,7 +129,9 @@ class MetaOptNet(MetaTemplate):
     def set_forward_loss(self, x, y):
         _, y_query = self.parse_feature(y, True)
         scores = self.set_forward(x, y)
-        y_query = y_query.reshape(-1).long()
+        y_query = y_query.reshape(-1)
+        label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
+        y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         ret = self.loss_fn(scores, y_query)
         return ret
     
