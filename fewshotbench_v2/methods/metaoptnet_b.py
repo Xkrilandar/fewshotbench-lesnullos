@@ -128,9 +128,10 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward_loss(self, x, y):
         _, y_query = self.parse_feature(y, True)
-        
+        print("ahhhhhhhhhhhhhh", y_query)
         scores = self.set_forward(x, y)
-        print(f"scores are of shape {scores.shape} and y_query of shape {y_query.shape}")
+        print("bbbbbbbbbbbbbbbbbbbbbbb", scores)
+        y_query = y_query.view(-1, self.n_way)
         ret = self.loss_fn(scores, y_query)
         return ret
     
@@ -271,7 +272,6 @@ def one_hot(indices, depth):
 
     encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
     index = indices.view(indices.size()+torch.Size([1]))
-    print(index)
     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
     return encoded_indicies
