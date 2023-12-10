@@ -306,6 +306,7 @@ def one_hot(indices, depth):
 
     encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
     index = indices.view(indices.size()+torch.Size([1]))
+    index = index.to(torch.int64)
     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
     return encoded_indicies
