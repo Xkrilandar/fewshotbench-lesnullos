@@ -77,6 +77,7 @@ class MetaOptNet(MetaTemplate):
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         
+        y_query = y_query.reshape(tasks_per_batch * n_support)
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
@@ -172,6 +173,10 @@ class MetaOptNet(MetaTemplate):
             #     y = None
 
             logits, y_query = self.set_forward_loss(x, y)
+
+            
+            label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
+            y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
             smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
             eps = 0
             smoothed_one_hot = smoothed_one_hot * (1 - eps) + (1 - smoothed_one_hot) * eps / (self.n_way - 1)
