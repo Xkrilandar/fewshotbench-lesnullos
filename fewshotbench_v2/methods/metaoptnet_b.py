@@ -253,7 +253,6 @@ class MetaOptNet(MetaTemplate):
     def count_accuracy(self, logits, label):
         pred = torch.argmax(logits, dim=1).view(-1)
         label = label.view(-1)
-        print("pred", pred, "label", label)
         accuracy = 100 * pred.eq(label).float().mean()
         return accuracy
 
