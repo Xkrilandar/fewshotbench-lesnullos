@@ -68,6 +68,7 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
+        print("y00000000000000000000000000000000000000000000000", self.n_way)
         kernel_matrix = computeGramMatrix(z_support, z_support)
 
         id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
@@ -126,8 +127,6 @@ class MetaOptNet(MetaTemplate):
         return logits
 
     def set_forward_loss(self, x, y):
-        #y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
-        #y_query = Variable(y_query.cuda())
         _, y_query = self.parse_feature(y, True)
         
         scores = self.set_forward(x, y)
