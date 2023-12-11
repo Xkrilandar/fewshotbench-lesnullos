@@ -220,13 +220,14 @@ class MetaOptNet(MetaTemplate):
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
-        return float(top1_correct), len(y_query)
+        loss = self.loss_fn(scores, y_query)
+        return float(top1_correct), len(y_query), loss
     
     def test_loop(self, test_loader, record=None, return_std=False):
         correct = 0
         count = 0
         acc_all = []
-
+        losses = []
         iter_num = len(test_loader)
         for i, (x, y) in enumerate(test_loader):
             if isinstance(x, list):
@@ -237,13 +238,15 @@ class MetaOptNet(MetaTemplate):
                 self.n_query = x.size(1) - self.n_support
                 if self.change_way:
                     self.n_way = x.size(0)
-            correct_this, count_this = self.correct(x, y)
+            correct_this, count_this, loss = self.correct(x, y)
             acc_all.append(correct_this / count_this * 100)
+            losses.append(loss)
 
         acc_all = np.asarray(acc_all)
         acc_mean = np.mean(acc_all)
         acc_std = np.std(acc_all)
-        print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
+        loss_mean = np.mean(np.asarray(losses))
+        print('%d Test Acc = %4.2f%% +- %4.2f%% and with average loss %4.2f%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num), loss_mean))
 
         if return_std:
             return acc_mean, acc_std
