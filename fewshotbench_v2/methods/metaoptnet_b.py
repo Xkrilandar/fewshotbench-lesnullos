@@ -134,6 +134,8 @@ class MetaOptNet(MetaTemplate):
         return logits
 
     def set_forward_loss(self, x, y):
+        print(self.n_way)
+        print(self.n_query)
         y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
         y_query = Variable(y_query.cuda())
         #_, y_query = self.parse_feature(y, True)
