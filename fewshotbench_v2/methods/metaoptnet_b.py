@@ -39,7 +39,7 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
-        y_support, y_query = self.parse_feature(y, is_feature)
+        y_support, y_query = self.parse_feature(y, True)
         print("y_support", y_support, "y_query", y_query)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
@@ -189,6 +189,7 @@ class MetaOptNet(MetaTemplate):
         # print("topk_inddddddd", topk_ind[:, 0])
         # print("y_queryyyyyyyyyyy", y_query)
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
+        print("y_query", y_query, "top1_correct", top1_correct)
         return float(top1_correct), len(y_query)
     
     def test_loop(self, test_loader, record=None, return_std=False):
