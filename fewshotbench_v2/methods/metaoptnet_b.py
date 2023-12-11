@@ -33,7 +33,8 @@ class MetaOptNet(MetaTemplate):
         
         scores = clf.decision_function(z_query_cpu)
         print("scores", scores)
-        return scores
+        scores_torch = torch.from_numpy(scores)
+        return scores_torch
 
 
     def set_forward_loss(self, x):
