@@ -220,7 +220,7 @@ class MetaOptNet(MetaTemplate):
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
-        loss = self.loss_fn(scores, torch.tensor(y_query).to('cuda')).cpu().numpy()
+        loss = self.loss_fn(scores, torch.tensor(y_query).to('cuda')).cpu().detach().numpy()
         return float(top1_correct), len(y_query), loss
     
     def test_loop(self, test_loader, record=None, return_std=False):
