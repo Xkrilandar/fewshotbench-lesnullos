@@ -40,7 +40,10 @@ class MatchingNet(MetaTemplate):
         #scores = F.mm(G_normalized.transpose(0,1)) #The implementation of Ross et al., but not consistent with origin paper and would cause large norm feature dominate 
         scores = self.relu( F_normalized.mm(G_normalized.transpose(0,1))  ) *100 # The original paper use cosine simlarity, but here we scale it by 100 to strengthen highest probability after softmax
         softmax = self.softmax(scores)
+        print("softmax", softmax)
+        print("Y_S", Y_S)
         logprobs =(softmax.mm(Y_S)+1e-6).log()
+        print("logprobs", logprobs)
         return logprobs
 
     def set_forward(self, x, is_feature = False):
