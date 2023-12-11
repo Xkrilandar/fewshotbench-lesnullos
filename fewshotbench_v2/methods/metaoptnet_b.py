@@ -37,8 +37,96 @@ class MetaOptNet(MetaTemplate):
         self.C_reg = 0.01
 
 
-    def set_forward(self, x, y_support, is_feature=False):
+    def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
+        # z_support = z_support.contiguous()
+        # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
+        # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
+
+        # scores_support = self.classifier(z_proto)
+        # scores = self.classifier(z_query)
+        # scores = -euclidean_dist(scores_query, scores_support)
+
+        tasks_per_batch = z_query.size(0)
+        n_support = z_support.size(1)
+        n_query = z_query.size(1)
+
+        assert(z_query.dim() == 3)
+        assert(z_support.dim() == 3)
+        assert(z_query.size(0) == z_support.size(0) and z_query.size(2) == z_support.size(2))
+        # #assert(n_support == n_way * n_shot)      # n_support must equal to n_way * n_shot
+
+        # #Here we solve the dual problem:
+        # #Note that the classes are indexed by m & samples are indexed by i.
+        # #min_{\alpha}  0.5 \sum_m ||w_m(\alpha)||^2 + \sum_i \sum_m e^m_i alpha^m_i
+        # #s.t.  \alpha^m_i <= C^m_i \forall m,i , \sum_m \alpha^m_i=0 \forall i
+
+        # #where w_m(\alpha) = \sum_i \alpha^m_i x_i,
+        # #and C^m_i = C if m  = y_i,
+        # #C^m_i = 0 if m != y_i.
+        # #This borrows the notation of liblinear.
+        
+        # #\alpha is an (n_support, n_way) matrix
+        # kernel_matrix = computeGramMatrix(z_support, z_support)
+
+        # id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
+        # block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
+        # #This seems to help avoid PSD error from the QP solver.
+        # block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
+        # original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        # label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(original_labels).tolist())))}
+        # support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
+        # support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
+        # support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
+        # support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
+        
+        # G = block_kernel_matrix
+        # e = -1.0 * support_labels_one_hot
+        # dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
+        # #print (G.size())
+        # #This part is for the inequality constraints:
+        # #\alpha^m_i <= C^m_i \forall m,i
+        # #where C^m_i = C if m  = y_i,
+        # #C^m_i = 0 if m != y_i.
+        # id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
+        # C = Variable(id_matrix_1)
+        # h = Variable(self.C_reg * support_labels_one_hot)
+
+        # #print (C.size(), h.size())
+        # #This part is for the equality constraints:
+        # #\sum_m \alpha^m_i=0 \forall i
+        # id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
+
+        # A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
+        # b = Variable(torch.zeros(tasks_per_batch, n_support))
+        # #print (A.size(), b.size())
+        # G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
+
+        # # Solve the following QP to fit SVM:
+        # #        \hat z =   argmin_z 1/2 z^T G z + e^T z
+        # #                 subject to Cz <= h
+        # # We use detach() to prevent backpropagation to fixed variables.
+        # maxIter = 15
+        # qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
+        #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
+
+        # Compute the classification score.
+        compatibility = computeGramMatrix(z_support, z_query)
+        compatibility = compatibility.float()
+        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
+        self.qp_sol = self.qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
+        logits = self.qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
+        logits = logits * compatibility
+        logits = torch.sum(logits, 1)
+
+        # Reshape logits to the desired shape
+        logits = logits.view(-1, self.n_way)
+
+        return logits
+
+    def set_forward_loss(self, x, y):
+        z_support, z_query = self.parse_feature(x, is_feature=False)
+        y_support, y_query = self.parse_feature(y, is_feature=True)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
@@ -107,28 +195,10 @@ class MetaOptNet(MetaTemplate):
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
         maxIter = 15
-        qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
+        self.qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
 
-        # Compute the classification score.
-        compatibility = computeGramMatrix(z_support, z_query)
-        compatibility = compatibility.float()
-        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
-        qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
-        logits = logits * compatibility
-        logits = torch.sum(logits, 1)
-
-        # Reshape logits to the desired shape
-        logits = logits.view(-1, self.n_way)
-
-        return logits
-
-    def set_forward_loss(self, x, y):
-        #y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
-        #self.y_query = Variable(y_query.cuda())
-        y_support, y_query =self.parse_feature(y, is_feature=True)
-        scores = self.set_forward(x, y_support)
+        scores = self.set_forward(x)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
         label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
@@ -176,10 +246,10 @@ class MetaOptNet(MetaTemplate):
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
     def correct(self, x, y):
-        y_support, y_query =self.parse_feature(y, is_feature=True)
+        _, y_query =self.parse_feature(y, is_feature=True)
         #y_support = torch.from_numpy(np.repeat(range( self.n_way ), self.n_support))
         #y_support = Variable(y_support.cuda())
-        scores = self.set_forward(x, y_support)
+        scores = self.set_forward(x)
         y_query = y_query.reshape(-1)
         label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
         y_query = [label_mapping[label.item()] for label in y_query]
