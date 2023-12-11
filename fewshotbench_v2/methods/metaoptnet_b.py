@@ -127,13 +127,13 @@ class MetaOptNet(MetaTemplate):
         return logits
 
     def set_forward_loss(self, x, y):
-        y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
-        y_query = Variable(y_query.cuda())
-        #_, y_query = self.parse_feature(y, True)
+        #y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
+        #y_query = Variable(y_query.cuda())
+        _, y_query = self.parse_feature(y, True)
         scores = self.set_forward(x, y)
-        #y_query = y_query.reshape(-1)
-        #label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
-        #y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
+        y_query = y_query.reshape(-1)
+        label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
+        self.y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         ret = self.loss_fn(scores, y_query)
         return ret
     
@@ -178,14 +178,12 @@ class MetaOptNet(MetaTemplate):
 
     def correct(self, x, y):
         scores = self.set_forward(x, y)
-        y_query = np.repeat(range(self.n_way), self.n_query)
+        #y_query = np.repeat(range(self.n_way), self.n_query)
 
         topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
-        print("topk_inddddddd", topk_ind[:, 0])
-        print("y_queryyyyyyyyyyy", y_query)
-        top1_correct = np.sum(topk_ind[:, 0] == y_query)
-        return float(top1_correct), len(y_query)
+        top1_correct = np.sum(topk_ind[:, 0] == self.y_query)
+        return float(top1_correct), len(self.y_query)
     
     def test_loop(self, test_loader, record=None, return_std=False):
         correct = 0
