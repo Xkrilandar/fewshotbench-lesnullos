@@ -178,12 +178,12 @@ class MetaOptNet(MetaTemplate):
     def correct(self, x, y):
         y_support, y_query =self.parse_feature(y, is_feature=True)
         scores = self.set_forward(x, y_support)
-        y_query = y_query.reshape(-1)
-        label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()).sorted())}
-        y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
+        # y_query = y_query.reshape(-1)
+        # label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()).sorted())}
+        # y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         #y_query = np.repeat(range(self.n_way), self.n_query)
         #y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
-        
+        y_query = np.repeat(range(self.n_way), self.n_query)
 
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
