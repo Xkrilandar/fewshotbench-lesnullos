@@ -34,7 +34,7 @@ class MetaOptNet(MetaTemplate):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
         #self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
         self.loss_fn = nn.CrossEntropyLoss()
-        self.C_reg = 0.01
+        self.C_reg = 0.1
 
 
     def set_forward(self, x, is_feature=False):
@@ -246,14 +246,8 @@ class MetaOptNet(MetaTemplate):
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
     def correct(self, x, y):
-        _, y_query =self.parse_feature(y, is_feature=True)
-        #y_support = torch.from_numpy(np.repeat(range( self.n_way ), self.n_support))
-        #y_support = Variable(y_support.cuda())
         scores = self.set_forward(x)
-        y_query = y_query.reshape(-1)
-        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
-        y_query = [label_mapping[label.item()] for label in y_query]
-        #y_query = np.repeat(range(self.n_way), self.n_query)
+        y_query = np.repeat(range(self.n_way), self.n_query)
 
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
