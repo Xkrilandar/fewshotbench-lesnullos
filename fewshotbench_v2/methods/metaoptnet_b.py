@@ -176,7 +176,9 @@ class MetaOptNet(MetaTemplate):
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
     def correct(self, x, y):
-        y_support, y_query =self.parse_feature(y, is_feature=True)
+        _, y_query =self.parse_feature(y, is_feature=True)
+        y_support = torch.from_numpy(np.repeat(range( self.n_way ), self.n_support))
+        y_support = Variable(y_support.cuda())
         scores = self.set_forward(x, y_support)
         y_query = y_query.reshape(-1)
         label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
