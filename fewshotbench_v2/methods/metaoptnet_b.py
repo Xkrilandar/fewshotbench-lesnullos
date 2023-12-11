@@ -250,8 +250,9 @@ class MetaOptNet(MetaTemplate):
         scores = self.set_forward(x)
         #y_query = np.repeat(range(self.n_way), self.n_query))
         y_query = y_query.reshape(-1)
-        print(y_query)
-        _, topk_labels = scores.data.topk(1, 1, True, True)
+        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
+        y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
+        topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
         return float(top1_correct), len(y_query)
