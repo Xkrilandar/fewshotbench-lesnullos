@@ -13,7 +13,7 @@ class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
         self.loss_fn = nn.CrossEntropyLoss()
-        self.clf = make_pipeline(SVC(kernel='linear', C=1))
+        self.clf = make_pipeline(StandardScaler(), SVC(kernel='linear', C=0.5))
 
 
     def set_forward(self, x, is_feature=False):
@@ -24,7 +24,7 @@ class MetaOptNet(MetaTemplate):
 
         support_labels = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
 
-        support_labels_cpu = support_labels.cpu().numpy()
+        support_labels_cpu = support_labels.cpu().detach().numpy()
         z_support_cpu = z_support.cpu().detach().numpy()
         z_query_cpu = z_query.cpu().detach().numpy()
 
@@ -43,5 +43,4 @@ class MetaOptNet(MetaTemplate):
         y_query = Variable(y_query.cuda())
 
         scores = self.set_forward(x)
-
         return self.loss_fn(scores, y_query )
