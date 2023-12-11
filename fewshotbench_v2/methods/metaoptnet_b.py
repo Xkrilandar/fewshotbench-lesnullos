@@ -34,7 +34,7 @@ class MetaOptNet(MetaTemplate):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
         #self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
         self.loss_fn = nn.CrossEntropyLoss()
-        self.C_reg = 0.1
+        self.C_reg = 0.01
 
 
     def set_forward(self, x, is_feature=False):
@@ -201,7 +201,7 @@ class MetaOptNet(MetaTemplate):
 
         scores = self.set_forward(x)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
-        y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
+        y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query)).to('cuda')
         ret = self.loss_fn(scores, y_query)
         return ret
     
