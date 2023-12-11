@@ -81,14 +81,16 @@ class MetaOptNet(MetaTemplate):
 
         y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)))
         print("y_support", y_support)
-        support_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-        print("support_labels", support_labels)
+        #support_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        support_labels = y_support
+        #print("support_labels", support_labels)
         #label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         #back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         #support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
-        support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
-        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
-        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
+        support_labels_one_hot = Variable(one_hot(support_labels, self.n_way).cuda()) # (tasks_per_batch * n_support, n_support)
+        print("support_labels", support_labels)
+        #support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
+        #support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
