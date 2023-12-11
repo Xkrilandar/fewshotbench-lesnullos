@@ -7,6 +7,7 @@ from torch.autograd import Variable
 
 from methods.meta_template import MetaTemplate
 from utils.data_utils import one_hot
+import sys
 
 
 class MatchingNet(MetaTemplate):
@@ -44,6 +45,7 @@ class MatchingNet(MetaTemplate):
         print("Y_S", Y_S)
         logprobs =(softmax.mm(Y_S)+1e-6).log()
         print("logprobs", logprobs)
+        sys.exit()
         return logprobs
 
     def set_forward(self, x, is_feature = False):

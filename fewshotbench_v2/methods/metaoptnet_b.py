@@ -134,6 +134,7 @@ class MetaOptNet(MetaTemplate):
         # Reshape logits to the desired shape
         logits = logits.view(-1, self.n_way)
         print("logits", logits)
+        sys.exit()
         
 
         return logits
