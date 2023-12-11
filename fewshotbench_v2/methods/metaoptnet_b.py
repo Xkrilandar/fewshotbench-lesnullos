@@ -126,7 +126,7 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward_loss(self, x, y):
         z_support, z_query = self.parse_feature(x, is_feature=False)
-        y_support, y_query = self.parse_feature(y, is_feature=True)
+        #y_support, y_query = self.parse_feature(y, is_feature=True)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
