@@ -8,7 +8,7 @@ cls:
   _target_: methods.baseline.Baseline
   type: ${dataset.type}
   n_way: ${n_way}
-  n_support: ${n_shot}
+  n_support: 25
   n_classes: ${train_classes}
   loss: softmax
 
