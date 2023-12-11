@@ -129,9 +129,7 @@ class MetaOptNet(MetaTemplate):
         #y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
         #y_query = Variable(y_query.cuda())
         y_support, y_query = self.parse_feature(y, True)
-        print("yyyyyyyyyy", y)
-        print("supporttttt", y_support)
-        print("queeeeeeery", y_query)
+        print(x)
         scores = self.set_forward(x, y)
         self.y_query = torch.tensor(y_query.reshape(-1)).to('cuda')
         #label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
