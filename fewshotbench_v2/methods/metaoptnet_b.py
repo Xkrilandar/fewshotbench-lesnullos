@@ -185,8 +185,8 @@ class MetaOptNet(MetaTemplate):
 
         topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
-        print("topk_inddddddd", topk_ind[:, 0])
-        print("y_queryyyyyyyyyyy", y_query)
+        # print("topk_inddddddd", topk_ind[:, 0])
+        # print("y_queryyyyyyyyyyy", y_query)
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
         return float(top1_correct), len(y_query)
     
