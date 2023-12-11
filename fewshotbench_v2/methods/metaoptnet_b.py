@@ -165,13 +165,12 @@ class MetaOptNet(MetaTemplate):
         label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(original_labels).tolist())))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
+        print(support_labels_one_hot)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
-        dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
-        #print (G.size())
         #This part is for the inequality constraints:
         #\alpha^m_i <= C^m_i \forall m,i
         #where C^m_i = C if m  = y_i,
@@ -180,7 +179,6 @@ class MetaOptNet(MetaTemplate):
         C = Variable(id_matrix_1)
         h = Variable(self.C_reg * support_labels_one_hot)
 
-        #print (C.size(), h.size())
         #This part is for the equality constraints:
         #\sum_m \alpha^m_i=0 \forall i
         id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
@@ -195,13 +193,6 @@ class MetaOptNet(MetaTemplate):
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
         maxIter = 15
-        print("G",G)
-        print("e", e)
-        print("c", C)
-        print("h", h)
-        print("h", h)
-        print("a", A)
-        print("b", b)
         self.qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
 
