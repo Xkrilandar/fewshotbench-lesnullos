@@ -252,7 +252,7 @@ class MetaOptNet(MetaTemplate):
         y_query = y_query.reshape(-1)
         label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
         y_query = [label_mapping[label.item()] for label in y_query]
-        topk_labels = scores.data.topk(1, 1, True, True)
+        _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
         return float(top1_correct), len(y_query)
