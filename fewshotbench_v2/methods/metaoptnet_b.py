@@ -118,7 +118,7 @@ class MetaOptNet(MetaTemplate):
         #        \hat z =   argmin_z 1/2 z^T G z + e^T z
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
-        maxIter = 15
+        maxIter = 3
         qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
         print("qp_sol", qp_sol)
