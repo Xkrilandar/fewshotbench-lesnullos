@@ -12,7 +12,7 @@ dataset:
     _target_: datasets.cell.tabula_muris.TMSetDataset
 
 backbone:
-  _target_: backbones.fcnet.FCNet
+  _target_: backbones.resnet.ResNet12
   layer_dim: [ 64, 64 ]
 
 # For baseline, how many total classes
