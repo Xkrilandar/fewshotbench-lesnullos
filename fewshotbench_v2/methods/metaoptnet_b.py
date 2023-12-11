@@ -32,7 +32,7 @@ class MetaOptNet(MetaTemplate):
         clf.fit(z_support_cpu, support_labels_cpu)
         
         scores = clf.decision_function(z_query_cpu)
-        
+        print("scores", scores)
         return scores
 
 
