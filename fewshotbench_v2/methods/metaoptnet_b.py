@@ -241,45 +241,45 @@ class MetaOptNet(MetaTemplate):
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
-    def correct(self, x, y):
-        _, y_query = self.parse_feature(y, is_feature=True)
-        scores = self.set_forward(x)
-        #y_query = np.repeat(range(self.n_way), self.n_query))
-        y_query = y_query.reshape(-1)
-        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
-        y_query = [label_mapping[label.item()] for label in y_query]
-        _, topk_labels = scores.data.topk(1, 1, True, True)
-        topk_ind = topk_labels.cpu().numpy()
-        top1_correct = np.sum(topk_ind[:, 0] == self.y_query)
-        return float(top1_correct), len(self.y_query)
+    # def correct(self, x, y):
+    #     _, y_query = self.parse_feature(y, is_feature=True)
+    #     scores = self.set_forward(x)
+    #     #y_query = np.repeat(range(self.n_way), self.n_query))
+    #     y_query = y_query.reshape(-1)
+    #     label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
+    #     y_query = [label_mapping[label.item()] for label in y_query]
+    #     _, topk_labels = scores.data.topk(1, 1, True, True)
+    #     topk_ind = topk_labels.cpu().numpy()
+    #     top1_correct = np.sum(topk_ind[:, 0] == y_query)
+    #     return float(top1_correct), len(y_query)
     
-    def test_loop(self, test_loader, record=None, return_std=False):
-        correct = 0
-        count = 0
-        acc_all = []
+    # def test_loop(self, test_loader, record=None, return_std=False):
+    #     correct = 0
+    #     count = 0
+    #     acc_all = []
 
-        iter_num = len(test_loader)
-        for i, (x, y) in enumerate(test_loader):
-            if isinstance(x, list):
-                self.n_query = x[0].size(1) - self.n_support
-                if self.change_way:
-                    self.n_way = x[0].size(0)
-            else: 
-                self.n_query = x.size(1) - self.n_support
-                if self.change_way:
-                    self.n_way = x.size(0)
-            correct_this, count_this = self.correct(x, y)
-            acc_all.append(correct_this / count_this * 100)
+    #     iter_num = len(test_loader)
+    #     for i, (x, y) in enumerate(test_loader):
+    #         if isinstance(x, list):
+    #             self.n_query = x[0].size(1) - self.n_support
+    #             if self.change_way:
+    #                 self.n_way = x[0].size(0)
+    #         else: 
+    #             self.n_query = x.size(1) - self.n_support
+    #             if self.change_way:
+    #                 self.n_way = x.size(0)
+    #         correct_this, count_this = self.correct(x, y)
+    #         acc_all.append(correct_this / count_this * 100)
 
-        acc_all = np.asarray(acc_all)
-        acc_mean = np.mean(acc_all)
-        acc_std = np.std(acc_all)
-        print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
+    #     acc_all = np.asarray(acc_all)
+    #     acc_mean = np.mean(acc_all)
+    #     acc_std = np.std(acc_all)
+    #     print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
 
-        if return_std:
-            return acc_mean, acc_std
-        else:
-            return acc_mean
+    #     if return_std:
+    #         return acc_mean, acc_std
+    #     else:
+    #         return acc_mean
 
 
 
