@@ -40,8 +40,8 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
-        #y_support, y_query = self.parse_feature(y, True)
-        # print("y_support", y_support, "y_query", y_query)
+        y_support, y_query = self.parse_feature(y, True)
+        print("y_support", y_support, "y_query", y_query)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
@@ -128,6 +128,8 @@ class MetaOptNet(MetaTemplate):
 
         # Reshape logits to the desired shape
         logits = logits.view(-1, self.n_way)
+        print("logits", logits)
+        
 
         return logits
 
