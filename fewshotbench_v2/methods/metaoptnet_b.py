@@ -4,148 +4,44 @@ import torch.nn as nn
 from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
 from qpth.qp import QPFunction
-import cvxpy as cp
 import wandb
 import sys
 from utils.data_utils import one_hot
 
 
-# class DifferentiableSVM(nn.Module):
-#     def __init__(self, num_features, num_classes):
-#         super(DifferentiableSVM, self).__init__()
-#         # Initialize weights and biases for the SVM
-#         self.weights = nn.Parameter(torch.randn(num_classes, num_features))
-#         self.bias = nn.Parameter(torch.randn(num_classes))
+class DifferentiableSVM(nn.Module):
+    def __init__(self, num_classes, num_features):
+        super(DifferentiableSVM, self).__init__()
+        self.num_classes = num_classes
+        self.num_features = num_features
 
-#     def forward(self, x):
-#         # Linear decision function: Wx + b
-#         return torch.matmul(x, self.weights.t()) + self.bias
-
-#     def hinge_loss(self, outputs, labels):
-#         # Implement hinge loss function for SVM
-#         # Note: labels should be +1 or -1
-#         hinge_loss = torch.mean(torch.clamp(1 - outputs.t() * labels, min=0))
-#         return hinge_loss
-
-#     def regularization_loss(self):
-#         # L2 regularization loss (optional)
-#         reg_loss = torch.norm(self.weights, p=2)
-#         return reg_loss
+        # Initialize SVM parameters (weights and biases)
+        self.weights = nn.Parameter(torch.randn(num_classes, num_features))
+        self.bias = nn.Parameter(torch.zeros(num_classes))
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
-        #self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
         self.loss_fn = nn.CrossEntropyLoss()
         self.C_reg = 0.01
+        self.classifier = DifferentiableSVM(num_classes=n_way, num_features=64)
 
 
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
         
-        print("self.n_support", self.n_support)
-        tasks_per_batch = z_query.size(0)
-        n_support = z_support.size(1)
-        n_query = z_query.size(1)
-        print("tasks_per_batch", tasks_per_batch)
-        print("n_support", n_support)
-        print("n_query", n_query)
-
-        assert(z_query.dim() == 3)
-        assert(z_support.dim() == 3)
-        assert(z_query.size(0) == z_support.size(0) and z_query.size(2) == z_support.size(2))
-        #assert(n_support == self.n_way * self.n_shot)      # n_support must equal to n_way * n_shot
-
-        #Here we solve the dual problem:
-        #Note that the classes are indexed by m & samples are indexed by i.
-        #min_{\alpha}  0.5 \sum_m ||w_m(\alpha)||^2 + \sum_i \sum_m e^m_i alpha^m_i
-        #s.t.  \alpha^m_i <= C^m_i \forall m,i , \sum_m \alpha^m_i=0 \forall i
-
-        #where w_m(\alpha) = \sum_i \alpha^m_i x_i,
-        #and C^m_i = C if m  = y_i,
-        #C^m_i = 0 if m != y_i.
-        #This borrows the notation of liblinear.
         
-        #\alpha is an (n_support, n_way) matrix
-        kernel_matrix = computeGramMatrix(z_support, z_support)
-
-        id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
-        block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
-        #This seems to help avoid PSD error from the QP solver.
-        block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
-
-        y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)))
-        print("y_support", y_support)
-        support_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-        #support_labels = y_support
-        #print("support_labels", support_labels)
-        #label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
-        #back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
-        #support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
-        support_labels_one_hot = Variable(one_hot(support_labels, self.n_way).cuda()) # (tasks_per_batch * n_support, n_support)
-        print("support_labels_one_hot", support_labels_one_hot)
-        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
-        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
-        
-        G = block_kernel_matrix
-        e = -1.0 * support_labels_one_hot
-        #dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
-        #print (G.size())
-        #This part is for the inequality constraints:
-        #\alpha^m_i <= C^m_i \forall m,i
-        #where C^m_i = C if m  = y_i,
-        #C^m_i = 0 if m != y_i.
-        id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
-        C = Variable(id_matrix_1)
-        h = Variable(self.C_reg * support_labels_one_hot)
-
-        #print (C.size(), h.size())
-        #This part is for the equality constraints:
-        #\sum_m \alpha^m_i=0 \forall i
-        id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
-
-        A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
-        b = Variable(torch.zeros(tasks_per_batch, n_support))
-        #print (A.size(), b.size())
-        G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
-
-        # Solve the following QP to fit SVM:
-        #        \hat z =   argmin_z 1/2 z^T G z + e^T z
-        #                 subject to Cz <= h
-        # We use detach() to prevent backpropagation to fixed variables.
-        maxIter = 3
-        qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
-        #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
-        print("qp_sol", qp_sol)
-        # Compute the classification score.
-        compatibility = computeGramMatrix(z_support, z_query)
-        compatibility = compatibility.float()
-        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
-        qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
-        #logits = logits * compatibility
-        logits = torch.sum(logits, 1)
-
-        # Reshape logits to the desired shape
-        logits = logits.view(-1, self.n_way)
-        print("logits", logits)
-        sys.exit()
-        
+        logits = ???
 
         return logits
 
     def set_forward_loss(self, x, y):
-        print(self.n_way)
-        print(self.n_query)
         y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
         y_query = Variable(y_query.cuda())
-        #_, y_query = self.parse_feature(y, True)
-        scores = self.set_forward(x, y)
-        #y_query = y_query.reshape(-1)
-        #label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
-        #y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
-        print("scores", scores, "y_query", y_query)
-        ret = self.loss_fn(scores, y_query)
+
+        logits = self.set_forward(x, y)
+        
+        ret = self.loss_fn(logits, y_query)
         return ret
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
@@ -224,7 +120,6 @@ class MetaOptNet(MetaTemplate):
         acc_mean = np.mean(acc_all)
         acc_std = np.std(acc_all)
         print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
-        sys.exit()
         if return_std:
             return acc_mean, acc_std
         else:

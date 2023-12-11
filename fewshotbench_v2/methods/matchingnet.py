@@ -98,6 +98,7 @@ class FullyContextualEmbedding(nn.Module):
             h = h + f
 
         return h
+    
     def cuda(self):
         super(FullyContextualEmbedding, self).cuda()
         self.c_0 = self.c_0.cuda()

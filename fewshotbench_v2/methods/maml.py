@@ -58,7 +58,6 @@ class MAML(MetaTemplate):
             x_b_i = x_var[:, self.n_support:, :].contiguous().view(self.n_way * self.n_query, *x.size()[2:])  # query data
         print("x_a_i", x_a_i)
         print("x_b_i", x_b_i)
-        sys.exit()
         if y is None:  # Classification task, assign labels (class indices) based on n_way
             y_a_i = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)))  # label for support data
         else:  # Regression task, keep labels as they are
