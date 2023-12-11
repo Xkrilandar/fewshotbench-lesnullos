@@ -129,7 +129,7 @@ class MetaOptNet(MetaTemplate):
         # y_query = Variable(y_query.cuda())
         y_support, y_query =self.parse_feature(y, is_feature=False)
         scores = self.set_forward(x, y_support)
-        self.y_query = torch.tensor(y_query.reshape(-1)).to('cuda')
+        self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         #label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
         #self.y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         ret = self.loss_fn(scores, self.y_query)
