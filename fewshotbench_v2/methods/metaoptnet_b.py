@@ -194,13 +194,12 @@ class MetaOptNet(MetaTemplate):
         maxIter = 15
         self.qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
-        print(self.qp_sol)
         scores = self.set_forward(x)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
         label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
-        y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
-        ret = self.loss_fn(scores, y_query)
+        self.y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
+        ret = self.loss_fn(scores, self.y_query)
         return ret
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
@@ -251,8 +250,8 @@ class MetaOptNet(MetaTemplate):
         y_query = [label_mapping[label.item()] for label in y_query]
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
-        top1_correct = np.sum(topk_ind[:, 0] == y_query)
-        return float(top1_correct), len(y_query)
+        top1_correct = np.sum(topk_ind[:, 0] == self.y_query)
+        return float(top1_correct), len(self.y_query)
     
     def test_loop(self, test_loader, record=None, return_std=False):
         correct = 0
