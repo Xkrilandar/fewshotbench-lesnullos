@@ -80,8 +80,9 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
 
         y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)))
-
+        print("y_support", y_support)
         support_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        print("support_labels", support_labels)
         #label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         #back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         #support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
@@ -118,7 +119,7 @@ class MetaOptNet(MetaTemplate):
         maxIter = 15
         qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
-
+        print("qp_sol", qp_sol)
         # Compute the classification score.
         compatibility = computeGramMatrix(z_support, z_query)
         compatibility = compatibility.float()
