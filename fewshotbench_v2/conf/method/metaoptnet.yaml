@@ -8,6 +8,8 @@ backbone:
 
 cls:
   _target_: methods.metaoptnet_b.MetaOptNet
+  n_way: 5
+  n_support: 25
   num_classes: ${train_classes}
   num_features: 64
 
