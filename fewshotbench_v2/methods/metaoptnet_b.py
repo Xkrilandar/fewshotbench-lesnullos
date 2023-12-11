@@ -37,9 +37,8 @@ class MetaOptNet(MetaTemplate):
         self.C_reg = 0.01
 
 
-    def set_forward(self, x, y, is_feature=False):
+    def set_forward(self, x, y_support, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
-        y_support, y_query = self.parse_feature(y, True)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
@@ -126,11 +125,10 @@ class MetaOptNet(MetaTemplate):
         return logits
 
     def set_forward_loss(self, x, y):
-        #y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
-        #y_query = Variable(y_query.cuda())
-        y_support, y_query = self.parse_feature(y, True)
-        print(x)
-        scores = self.set_forward(x, y)
+        # y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
+        # y_query = Variable(y_query.cuda())
+        y_support, y_query =self.parse_feature(y, is_feature=False)
+        scores = self.set_forward(x, y_support)
         self.y_query = torch.tensor(y_query.reshape(-1)).to('cuda')
         #label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
         #self.y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
@@ -176,8 +174,8 @@ class MetaOptNet(MetaTemplate):
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
-    def correct(self, x, y):
-        scores = self.set_forward(x, y)
+    def correct(self, x, y_support):
+        scores = self.set_forward(x, y_support)
         #y_query = np.repeat(range(self.n_way), self.n_query)
 
         topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
