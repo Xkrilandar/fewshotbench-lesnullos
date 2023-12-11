@@ -47,12 +47,13 @@ class MetaOptNet(MetaTemplate):
         tasks_per_batch = z_query.size(0)
         n_support = z_support.size(1)
         n_query = z_query.size(1)
+        print("tasks_per_batch", tasks_per_batch)
+        print("n_support", n_support)
+        print("n_query", n_query)
 
         assert(z_query.dim() == 3)
         assert(z_support.dim() == 3)
         assert(z_query.size(0) == z_support.size(0) and z_query.size(2) == z_support.size(2))
-        print("n_support", n_support)
-        sys.exit()
         #assert(n_support == self.n_way * self.n_shot)      # n_support must equal to n_way * n_shot
 
         #Here we solve the dual problem:
