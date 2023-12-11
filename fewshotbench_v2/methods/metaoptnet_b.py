@@ -134,7 +134,7 @@ class MetaOptNet(MetaTemplate):
         y_query = y_query.reshape(-1)
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
         self.y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
-        ret = self.loss_fn(scores, y_query)
+        ret = self.loss_fn(scores, self.y_query)
         return ret
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
