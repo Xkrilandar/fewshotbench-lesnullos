@@ -246,8 +246,9 @@ class MetaOptNet(MetaTemplate):
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
     def correct(self, x):
+        _, y_query = self.parse_feature(y, is_feature=True)
         scores = self.set_forward(x)
-        y_query = np.repeat(range(self.n_way), self.n_query)
+        #y_query = np.repeat(range(self.n_way), self.n_query)
 
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
@@ -260,7 +261,7 @@ class MetaOptNet(MetaTemplate):
         acc_all = []
 
         iter_num = len(test_loader)
-        for i, (x, _) in enumerate(test_loader):
+        for i, (x, y) in enumerate(test_loader):
             if isinstance(x, list):
                 self.n_query = x[0].size(1) - self.n_support
                 if self.change_way:
@@ -269,7 +270,7 @@ class MetaOptNet(MetaTemplate):
                 self.n_query = x.size(1) - self.n_support
                 if self.change_way:
                     self.n_way = x.size(0)
-            correct_this, count_this = self.correct(x)
+            correct_this, count_this = self.correct(x, y)
             acc_all.append(correct_this / count_this * 100)
 
         acc_all = np.asarray(acc_all)
