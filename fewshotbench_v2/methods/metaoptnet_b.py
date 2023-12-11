@@ -146,7 +146,6 @@ class MetaOptNet(MetaTemplate):
         #y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         print("scores", scores, "y_query", y_query)
         ret = self.loss_fn(scores, y_query)
-        sys.exit()
         return ret
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
@@ -223,7 +222,7 @@ class MetaOptNet(MetaTemplate):
         acc_mean = np.mean(acc_all)
         acc_std = np.std(acc_all)
         print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
-        #sys.exit()
+        sys.exit()
         if return_std:
             return acc_mean, acc_std
         else:
