@@ -3,10 +3,31 @@ import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
+from qpth.qp import QPFunction
 import cvxpy as cp
 import wandb
-from qpth.qp import QPFunction
-import torch.nn.functional as F
+
+# class DifferentiableSVM(nn.Module):
+#     def __init__(self, num_features, num_classes):
+#         super(DifferentiableSVM, self).__init__()
+#         # Initialize weights and biases for the SVM
+#         self.weights = nn.Parameter(torch.randn(num_classes, num_features))
+#         self.bias = nn.Parameter(torch.randn(num_classes))
+
+#     def forward(self, x):
+#         # Linear decision function: Wx + b
+#         return torch.matmul(x, self.weights.t()) + self.bias
+
+#     def hinge_loss(self, outputs, labels):
+#         # Implement hinge loss function for SVM
+#         # Note: labels should be +1 or -1
+#         hinge_loss = torch.mean(torch.clamp(1 - outputs.t() * labels, min=0))
+#         return hinge_loss
+
+#     def regularization_loss(self):
+#         # L2 regularization loss (optional)
+#         reg_loss = torch.norm(self.weights, p=2)
+#         return reg_loss
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
@@ -16,9 +37,16 @@ class MetaOptNet(MetaTemplate):
         self.C_reg = 0.01
 
 
-    def set_forward(self, x, is_feature=False):
+    def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
         #y_support, y_query = self.parse_feature(y, True)
+        # z_support = z_support.contiguous()
+        # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
+        # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
+
+        # scores_support = self.classifier(z_proto)
+        # scores = self.classifier(z_query)
+        # scores = -euclidean_dist(scores_query, scores_support)
 
         tasks_per_batch = z_query.size(0)
         n_support = z_support.size(1)
@@ -46,18 +74,11 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
-        
-        #print("y_support", y_support.size())
-        y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)))
+        y_support = np.repeat(range(self.n_way), self.n_query)
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-        #print("original_labels", original_labels.size())
-        #print("y_query", y_query.size())
-        # y_query = y_query.reshape(tasks_per_batch * n_query)
-        #print("y_query", y_query.size())
-
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
+        back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
-        # query_labels = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
@@ -101,26 +122,21 @@ class MetaOptNet(MetaTemplate):
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
 
+        # Reshape logits to the desired shape
+        logits = logits.view(-1, self.n_way)
+
         return logits
 
-    def set_forward_loss(self, x):
-        y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
+    def set_forward_loss(self, x, y):
+        y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
         y_query = Variable(y_query.cuda())
-        # y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query * self.n_way // self.n_way))
-        # y_query = y_query.view(self.n_way, self.n_query, -1)  # Reshape to [5, 15, 5]
-        # y_query = Variable(y_query.cuda())
-
-
-
-
-        # scores = self.set_forward(x, y)
-        # scores = scores.view(self.n_query * self.n_way, -1)
-        logits = self.set_forward(x)
-
-        
-        return logits, y_query
-
-        # return self.loss_fn(scores, y_query)
+        #_, y_query = self.parse_feature(y, True)
+        scores = self.set_forward(x, y)
+        #y_query = y_query.reshape(-1)
+        #label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
+        #y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
+        ret = self.loss_fn(scores, y_query)
+        return ret
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
         print_freq = 10
@@ -133,7 +149,6 @@ class MetaOptNet(MetaTemplate):
         for i, (x, y) in enumerate(train_loader):
             if isinstance(x, list):
                 self.n_query = x[0].size(1) - self.n_support
-                
                 if self.change_way:
                     self.n_way = x[0].size(0)
                 # assert self.n_way == x[0].size(
@@ -149,18 +164,7 @@ class MetaOptNet(MetaTemplate):
             # if self.type == "classification":
             #     y = None
 
-            logits, y_query = self.set_forward_loss(x)
-
-            
-            label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
-            y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
-            smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
-            eps = 0
-            smoothed_one_hot = smoothed_one_hot * (1 - eps) + (1 - smoothed_one_hot) * eps / (self.n_way - 1)
-
-            log_prb = F.log_softmax(logits.reshape(-1, self.n_way), dim=1)
-            loss = -(smoothed_one_hot * log_prb).sum(dim=1)
-            loss = loss.mean()
+            loss = self.set_forward_loss(x, y)
             # loss_all.append(loss)
 
             optimizer.zero_grad()
@@ -172,6 +176,17 @@ class MetaOptNet(MetaTemplate):
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader),
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
+
+    def correct(self, x, y):
+        scores = self.set_forward(x, y)
+        y_query = np.repeat(range(self.n_way), self.n_query)
+
+        topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
+        topk_ind = topk_labels.cpu().numpy()
+        print("topk_inddddddd", topk_ind[:, 0])
+        print("y_queryyyyyyyyyyy", y_query)
+        top1_correct = np.sum(topk_ind[:, 0] == y_query)
+        return float(top1_correct), len(y_query)
     
     def test_loop(self, test_loader, record=None, return_std=False):
         correct = 0
@@ -188,21 +203,8 @@ class MetaOptNet(MetaTemplate):
                 self.n_query = x.size(1) - self.n_support
                 if self.change_way:
                     self.n_way = x.size(0)
-            logits = self.set_forward(x)
-
-            # smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
-            # eps = 0
-            # smoothed_one_hot = smoothed_one_hot * (1 - eps) + (1 - smoothed_one_hot) * eps / (self.n_way - 1)
-
-            # log_prb = F.log_softmax(logits.reshape(-1, self.n_way), dim=1)
-            # loss = -(smoothed_one_hot * log_prb).sum(dim=1)
-            # loss = loss.mean()
-            y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
-            y_query = Variable(y_query.cuda())
-            acc = self.count_accuracy(logits.reshape(-1, self.n_way), y_query.reshape(-1))
-
-            # correct_this, count_this = self.correct(x, y)
-            acc_all.append(acc.cpu())
+            correct_this, count_this = self.correct(x, y)
+            acc_all.append(correct_this / count_this * 100)
 
         acc_all = np.asarray(acc_all)
         acc_mean = np.mean(acc_all)
@@ -213,26 +215,6 @@ class MetaOptNet(MetaTemplate):
             return acc_mean, acc_std
         else:
             return acc_mean
-        
-    # def correct(self, x, y):
-    #     scores = self.set_forward(x, y)
-    #     y_query = np.repeat(range(self.n_way), self.n_query)
-
-    #     topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
-    #     topk_ind = topk_labels.cpu().numpy()
-    #     top1_correct = np.sum(topk_ind[:, 0] == y_query)
-    #     return float(top1_correct), len(y_query)
-    
-    def count_accuracy(self, logits, label):
-        #print(logits)
-        pred = torch.argmax(logits, dim=1).view(-1)
-        label = label.view(-1)
-        accuracy = 100 * pred.eq(label).float().mean()
-        return accuracy
-
-
-    
-
 
 
 
@@ -254,23 +236,23 @@ def computeGramMatrix(A, B):
 
     return torch.bmm(A, B.transpose(1,2))
 
-# def solve_qp(Q, c, G, h, A, b, n_support):
-#     # Create a variable to optimize
-#     # x = cp.Variable(len(c))
-#     x = cp.Variable(n_support)
+def solve_qp(Q, c, G, h, A, b, n_support):
+    # Create a variable to optimize
+    # x = cp.Variable(len(c))
+    x = cp.Variable(n_support)
 
-#     # Define the objective function
-#     objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + x)
+    # Define the objective function
+    objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + x)
 
-#     # Define the constraints
-#     # constraints = [G @ x <= h, A @ x == b]
-#     constraints = [A @ x == b]
+    # Define the constraints
+    # constraints = [G @ x <= h, A @ x == b]
+    constraints = [A @ x == b]
 
-#     # Define the problem and solve it
-#     prob = cp.Problem(objective, constraints)
-#     prob.solve()
+    # Define the problem and solve it
+    prob = cp.Problem(objective, constraints)
+    prob.solve()
 
-#     return x.value
+    return x.value
 
 def batched_kronecker(matrix1, matrix2):
     matrix1_flatten = matrix1.reshape(matrix1.size()[0], -1)
