@@ -189,7 +189,7 @@ class MetaOptNet(MetaTemplate):
         print("topk scores",topk_scores)
         print("scores", scores)
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
-        return float(top1_correct), len(self.y_query)
+        return float(top1_correct), len(y_query)
     
     def test_loop(self, test_loader, record=None, return_std=False):
         correct = 0
