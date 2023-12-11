@@ -30,7 +30,7 @@ class ProtoNet(MetaTemplate):
         y_query = Variable(y_query.cuda())
 
         scores = self.set_forward(x)
-
+        print("scores", scores, "y_query", y_query)
         return self.loss_fn(scores, y_query )
 
 
