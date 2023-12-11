@@ -155,43 +155,15 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        kernel_matrix = computeGramMatrix(z_support, z_support)
-
-        id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
-        block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
-        #This seems to help avoid PSD error from the QP solver.
-        block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
+        
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         support_labels = torch.tensor(map_labels(original_labels)).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
-        G = block_kernel_matrix
-        e = -1.0 * support_labels_one_hot
-        #This part is for the inequality constraints:
-        #\alpha^m_i <= C^m_i \forall m,i
-        #where C^m_i = C if m  = y_i,
-        #C^m_i = 0 if m != y_i.
-        id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
-        C = Variable(id_matrix_1)
-        h = Variable(self.C_reg * support_labels_one_hot)
-
-        #This part is for the equality constraints:
-        #\sum_m \alpha^m_i=0 \forall i
-        id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
-
-        A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
-        b = Variable(torch.zeros(tasks_per_batch, n_support))
-        #print (A.size(), b.size())
-        G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
-
-        # Solve the following QP to fit SVM:
-        #        \hat z =   argmin_z 1/2 z^T G z + e^T z
-        #                 subject to Cz <= h
-        # We use detach() to prevent backpropagation to fixed variables.
-        maxIter = 15
-        self.qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
+        
+        self.qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
         scores = self.set_forward(x)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
@@ -277,6 +249,39 @@ class MetaOptNet(MetaTemplate):
             return acc_mean, acc_std
         else:
             return acc_mean
+
+    def qp_solve(self, support_labels_one_hot, z_support, n_support, tasks_per_batch):
+        kernel_matrix = computeGramMatrix(z_support, z_support)
+
+        id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
+        block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
+        #This seems to help avoid PSD error from the QP solver.
+        block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
+        G = block_kernel_matrix
+        e = -1.0 * support_labels_one_hot
+        #This part is for the inequality constraints:
+        #\alpha^m_i <= C^m_i \forall m,i
+        #where C^m_i = C if m  = y_i,
+        #C^m_i = 0 if m != y_i.
+        id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
+        C = Variable(id_matrix_1)
+        h = Variable(self.C_reg * support_labels_one_hot)
+
+        #This part is for the equality constraints:
+        #\sum_m \alpha^m_i=0 \forall i
+        id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
+
+        A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
+        b = Variable(torch.zeros(tasks_per_batch, n_support))
+        #print (A.size(), b.size())
+        G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
+
+        # Solve the following QP to fit SVM:
+        #        \hat z =   argmin_z 1/2 z^T G z + e^T z
+        #                 subject to Cz <= h
+        # We use detach() to prevent backpropagation to fixed variables.
+        maxIter = 15
+        return QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
 
 
 def map_labels(labels):
