@@ -135,6 +135,8 @@ class MAML(MetaTemplate):
             if self.type == "classification":
                 y = None
 
+            print("x", x)
+            print("y", y)
             loss = self.set_forward_loss(x, y)
             avg_loss = avg_loss + loss.item()
             loss_all.append(loss)
