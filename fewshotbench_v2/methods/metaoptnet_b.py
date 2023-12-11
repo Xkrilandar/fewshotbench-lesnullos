@@ -161,6 +161,8 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
+        y_support = torch.from_numpy(np.repeat(range( self.n_way ), self.n_support ))
+        y_support = Variable(y_support.cuda())
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(original_labels).tolist())))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
@@ -200,6 +202,8 @@ class MetaOptNet(MetaTemplate):
 
         scores = self.set_forward(x)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
+        y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
+        y_query = Variable(y_query.cuda())
         y_query = y_query.reshape(-1)
         label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
         y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
