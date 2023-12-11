@@ -62,7 +62,7 @@ class MetaTemplate(nn.Module):
         topk_ind = topk_labels.cpu().numpy()
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
         print("y_query", y_query, "topk_labels", topk_labels)
-        sys.exit()
+        
         return float(top1_correct), len(y_query)
 
     def correlation(self, x, y, type="pearson"):
@@ -125,7 +125,7 @@ class MetaTemplate(nn.Module):
         acc_mean = np.mean(acc_all)
         acc_std = np.std(acc_all)
         print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
-
+        sys.exit()
         if return_std:
             return acc_mean, acc_std
         else:

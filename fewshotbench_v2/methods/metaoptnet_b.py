@@ -191,7 +191,7 @@ class MetaOptNet(MetaTemplate):
         # print("y_queryyyyyyyyyyy", y_query)
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
         print("y_query", y_query, "topk_labels", topk_labels)
-        sys.exit()
+        
         return float(top1_correct), len(y_query)
     
     def test_loop(self, test_loader, record=None, return_std=False):
@@ -216,7 +216,7 @@ class MetaOptNet(MetaTemplate):
         acc_mean = np.mean(acc_all)
         acc_std = np.std(acc_all)
         print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
-
+        sys.exit()
         if return_std:
             return acc_mean, acc_std
         else:
