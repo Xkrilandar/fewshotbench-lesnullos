@@ -245,7 +245,7 @@ class MetaOptNet(MetaTemplate):
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
-    def correct(self, x):
+    def correct(self, x, y):
         _, y_query = self.parse_feature(y, is_feature=True)
         scores = self.set_forward(x)
         #y_query = np.repeat(range(self.n_way), self.n_query)
