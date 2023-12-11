@@ -20,8 +20,9 @@ class MetaOptNet(MetaTemplate):
         z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
         z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
 
-        support_labels = np.repeat(range(self.n_way), self.n_support)
-
+        support_labels = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
+        print("support_labels", support_labels)
+        print("z_support", z_support)
         clf = make_pipeline(StandardScaler(), SVC(kernel='linear', C=1))
         clf.fit(z_support, support_labels)
         
