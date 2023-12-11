@@ -33,7 +33,7 @@ class MetaOptNet(MetaTemplate):
         
         scores = clf.decision_function(z_query_cpu)
         print("scores", scores)
-        scores_torch = Variable(torch.from_numpy(scores).cuda())
+        scores_torch = Variable(torch.from_numpy(scores).cuda(), requires_grad=True)
         return scores_torch
 
 
