@@ -246,7 +246,8 @@ class MetaOptNet(MetaTemplate):
         acc_mean = np.mean(acc_all)
         acc_std = np.std(acc_all)
         loss_mean = np.mean(np.asarray(losses))
-        print('%d Test Acc = %4.2f%% +- %4.2f%% and with average loss %4.2f%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num), loss_mean))
+        print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
+        print(f"mean test loss {loss_mean}")
 
         if return_std:
             return acc_mean, acc_std
