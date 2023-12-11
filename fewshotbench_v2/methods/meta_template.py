@@ -60,6 +60,7 @@ class MetaTemplate(nn.Module):
         topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
+        print("y_query", y_query, "topk_labels", topk_labels)
         return float(top1_correct), len(y_query)
 
     def correlation(self, x, y, type="pearson"):
