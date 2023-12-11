@@ -179,7 +179,7 @@ class MetaOptNet(MetaTemplate):
         y_support, y_query =self.parse_feature(y, is_feature=True)
         scores = self.set_forward(x, y_support)
         # y_query = y_query.reshape(-1)
-        label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()).sorted())}
+        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
         y_query = [label_mapping[label.item()] for label in y_query]
         #y_query = np.repeat(range(self.n_way), self.n_query)
 
