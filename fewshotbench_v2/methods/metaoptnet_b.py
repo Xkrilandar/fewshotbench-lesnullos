@@ -40,8 +40,6 @@ class MetaOptNet(MetaTemplate):
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
         y_support, y_query = self.parse_feature(y, True)
-        print("y_supoooooooooooooooooooooort",y_support)
-        print("queeeeeeeeeeeery",y_query)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
@@ -78,7 +76,6 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
-        back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
@@ -131,11 +128,14 @@ class MetaOptNet(MetaTemplate):
     def set_forward_loss(self, x, y):
         #y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
         #y_query = Variable(y_query.cuda())
-        _, y_query = self.parse_feature(y, True)
+        y_support, y_query = self.parse_feature(y, True)
+        print("yyyyyyyyyy", y)
+        print("supporttttt", y_support)
+        print("queeeeeeery", y_query)
         scores = self.set_forward(x, y)
-        y_query = y_query.reshape(-1)
-        label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
-        self.y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
+        self.y_query = torch.tensor(y_query.reshape(-1)).to('cuda')
+        #label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
+        #self.y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         ret = self.loss_fn(scores, self.y_query)
         return ret
     
