@@ -29,11 +29,35 @@ import wandb
 #         reg_loss = torch.norm(self.weights, p=2)
 #         return reg_loss
 
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=2.0, alpha=None, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        CE_loss = F.cross_entropy(inputs, targets, reduction='none')
+        pt = torch.exp(-CE_loss)
+        if self.alpha is not None:
+            alpha_t = self.alpha[targets]
+            loss = alpha_t * ((1 - pt) ** self.gamma) * CE_loss
+        else:
+            loss = ((1 - pt) ** self.gamma) * CE_loss
+
+        if self.reduction == 'mean':
+            return torch.mean(loss)
+        elif self.reduction == 'sum':
+            return torch.sum(loss)
+        else:
+            return loss
+
+
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
         #self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
-        self.loss_fn = nn.CrossEntropyLoss()
+        self.loss_fn = FocalLoss()
         self.C_reg = 0.01
 
 
@@ -182,8 +206,8 @@ class MetaOptNet(MetaTemplate):
 
         topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
-        print("topk_inddddddd", topk_ind[:, 0])
-        print("y_queryyyyyyyyyyy", y_query)
+        # print("topk_inddddddd", topk_ind[:, 0])
+        # print("y_queryyyyyyyyyyy", y_query)
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
         return float(top1_correct), len(y_query)
     
