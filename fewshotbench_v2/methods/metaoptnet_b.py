@@ -248,8 +248,8 @@ class MetaOptNet(MetaTemplate):
     def correct(self, x, y):
         _, y_query = self.parse_feature(y, is_feature=True)
         scores = self.set_forward(x)
-        #y_query = np.repeat(range(self.n_way), self.n_query)
-
+        #y_query = np.repeat(range(self.n_way), self.n_query))
+        y_query = y_query.reshape(-1)
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
