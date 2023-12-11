@@ -126,7 +126,7 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward_loss(self, x, y):
         z_support, z_query = self.parse_feature(x, is_feature=False)
-        y_support, y_query = self.parse_feature(y, is_feature=True)
+        #y_support, y_query = self.parse_feature(y, is_feature=True)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
@@ -161,9 +161,10 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
-        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(original_labels).tolist())))}
-        support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
+        #original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        #label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(original_labels).tolist())))}
+        #support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
+        support_labels = torch.from_numpy(np.repeat(range(self.n_way), self.n_support))
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
@@ -200,9 +201,7 @@ class MetaOptNet(MetaTemplate):
 
         scores = self.set_forward(x)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
-        y_query = y_query.reshape(-1)
-        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
-        y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
+        y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
         ret = self.loss_fn(scores, y_query)
         return ret
     
@@ -245,7 +244,7 @@ class MetaOptNet(MetaTemplate):
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
-    def correct(self, x, y):
+    def correct(self, x):
         scores = self.set_forward(x)
         y_query = np.repeat(range(self.n_way), self.n_query)
 
@@ -260,7 +259,7 @@ class MetaOptNet(MetaTemplate):
         acc_all = []
 
         iter_num = len(test_loader)
-        for i, (x, y) in enumerate(test_loader):
+        for i, (x, _) in enumerate(test_loader):
             if isinstance(x, list):
                 self.n_query = x[0].size(1) - self.n_support
                 if self.change_way:
@@ -269,7 +268,7 @@ class MetaOptNet(MetaTemplate):
                 self.n_query = x.size(1) - self.n_support
                 if self.change_way:
                     self.n_way = x.size(0)
-            correct_this, count_this = self.correct(x, y)
+            correct_this, count_this = self.correct(x)
             acc_all.append(correct_this / count_this * 100)
 
         acc_all = np.asarray(acc_all)
