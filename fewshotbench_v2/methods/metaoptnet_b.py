@@ -195,6 +195,13 @@ class MetaOptNet(MetaTemplate):
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
         maxIter = 15
+        print("G",G)
+        print("e", e)
+        print("c", C)
+        print("h", h)
+        print("h", h)
+        print("a", A)
+        print("b", b)
         self.qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
 
