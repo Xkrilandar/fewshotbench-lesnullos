@@ -33,7 +33,7 @@ from utils.data_utils import one_hot
 #         return reg_loss
 
 class MetaOptNet(MetaTemplate):
-    def __init__(self, backbone, n_way, n_support, num_classes, num_features):
+    def __init__(self, backbone, n_way, n_support):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
         #self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
         self.loss_fn = nn.CrossEntropyLoss()
