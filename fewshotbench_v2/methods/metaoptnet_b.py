@@ -43,7 +43,7 @@ class MetaOptNet(MetaTemplate):
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
         
-
+        print("self.n_support", self.n_support)
         tasks_per_batch = z_query.size(0)
         n_support = z_support.size(1)
         n_query = z_query.size(1)
