@@ -40,7 +40,6 @@ class MetaOptNet(MetaTemplate):
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
         y_support, y_query = self.parse_feature(y, True)
-
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
@@ -75,10 +74,9 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
-        print("y_support",y_support)
-        print("y", y)
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
+        back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
@@ -129,12 +127,13 @@ class MetaOptNet(MetaTemplate):
         return logits
 
     def set_forward_loss(self, x, y):
-        y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
+        y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
         y_query = Variable(y_query.cuda())
-        
+        #_, y_query = self.parse_feature(y, True)
         scores = self.set_forward(x, y)
-        print("scores", scores)
-        print("y_query", y_query)
+        #y_query = y_query.reshape(-1)
+        #label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
+        #y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         ret = self.loss_fn(scores, y_query)
         return ret
     
@@ -177,9 +176,44 @@ class MetaOptNet(MetaTemplate):
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
+    def correct(self, x, y):
+        scores = self.set_forward(x, y)
+        y_query = np.repeat(range(self.n_way), self.n_query)
 
+        topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
+        topk_ind = topk_labels.cpu().numpy()
+        print("topk_inddddddd", topk_ind[:, 0])
+        print("y_queryyyyyyyyyyy", y_query)
+        top1_correct = np.sum(topk_ind[:, 0] == y_query)
+        return float(top1_correct), len(y_query)
     
+    def test_loop(self, test_loader, record=None, return_std=False):
+        correct = 0
+        count = 0
+        acc_all = []
 
+        iter_num = len(test_loader)
+        for i, (x, y) in enumerate(test_loader):
+            if isinstance(x, list):
+                self.n_query = x[0].size(1) - self.n_support
+                if self.change_way:
+                    self.n_way = x[0].size(0)
+            else: 
+                self.n_query = x.size(1) - self.n_support
+                if self.change_way:
+                    self.n_way = x.size(0)
+            correct_this, count_this = self.correct(x, y)
+            acc_all.append(correct_this / count_this * 100)
+
+        acc_all = np.asarray(acc_all)
+        acc_mean = np.mean(acc_all)
+        acc_std = np.std(acc_all)
+        print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
+
+        if return_std:
+            return acc_mean, acc_std
+        else:
+            return acc_mean
 
 
 
@@ -238,7 +272,6 @@ def one_hot(indices, depth):
 
     encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
     index = indices.view(indices.size()+torch.Size([1]))
-    print(index)
     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
     return encoded_indicies
