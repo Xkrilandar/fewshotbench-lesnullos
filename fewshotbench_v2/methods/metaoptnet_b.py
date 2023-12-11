@@ -8,7 +8,7 @@ import cvxpy as cp
 import wandb
 import sys
 from utils.data_utils import one_hot
-
+from sklearn import svm
 
 # class DifferentiableSVM(nn.Module):
 #     def __init__(self, num_features, num_classes):
@@ -18,7 +18,7 @@ from utils.data_utils import one_hot
 #         self.bias = nn.Parameter(torch.randn(num_classes))
 
 #     def forward(self, x):
-#         # Linear decision function: Wx + b
+         # Linear decision function: Wx + b
 #         return torch.matmul(x, self.weights.t()) + self.bias
 
 #     def hinge_loss(self, outputs, labels):

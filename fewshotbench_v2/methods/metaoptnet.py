@@ -5,6 +5,10 @@ from torch.autograd import Variable
 
 from methods.meta_template import MetaTemplate
 
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
@@ -13,20 +17,16 @@ class MetaOptNet(MetaTemplate):
     def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
 
-        z_support = z_support.contiguous()
-        z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
+        z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
         z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
 
-        def euclidean_dist(query, proto):
-            nquery = query.size(0)
-            nproto = proto.size(0)
-            dim = query.size(1)
-            query = query.unsqueeze(1).expand(nquery, nproto, dim)
-            proto = proto.unsqueeze(0).expand(nquery, nproto, dim)
-            return torch.pow(query - proto, 2).sum(2)
+        support_labels = np.repeat(range(self.n_way), self.n_support)
 
-        dists = euclidean_dist(z_query, z_proto)
-        scores = -dists
+        clf = make_pipeline(StandardScaler(), SVC(kernel='linear', C=1))
+        clf.fit(z_support, support_labels)
+        
+        scores = clf.decision_function(z_query)
+        
         return scores
 
 
