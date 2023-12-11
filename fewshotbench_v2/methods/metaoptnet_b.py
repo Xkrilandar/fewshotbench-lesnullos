@@ -7,6 +7,8 @@ from qpth.qp import QPFunction
 import cvxpy as cp
 import wandb
 import sys
+from utils.data_utils import one_hot
+
 
 # class DifferentiableSVM(nn.Module):
 #     def __init__(self, num_features, num_classes):
@@ -41,7 +43,7 @@ class MetaOptNet(MetaTemplate):
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
         y_support, y_query = self.parse_feature(y, True)
-        print("y_support", y_support, "y_query", y_query)
+        #print("y_support", y_support, "y_query", y_query)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
@@ -79,17 +81,17 @@ class MetaOptNet(MetaTemplate):
 
         y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
 
-        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-        label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
-        back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
-        support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
+        support_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        #label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
+        #back_mapping = {i: label for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
+        #support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
-        dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
+        #dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
         #print (G.size())
         #This part is for the inequality constraints:
         #\alpha^m_i <= C^m_i \forall m,i
@@ -270,19 +272,19 @@ def batched_kronecker(matrix1, matrix2):
     return torch.bmm(matrix1_flatten.unsqueeze(2), matrix2_flatten.unsqueeze(1)).reshape([matrix1.size()[0]] + list(matrix1.size()[1:]) + list(matrix2.size()[1:])).permute([0, 1, 3, 2, 4]).reshape(matrix1.size(0), matrix1.size(1) * matrix2.size(1), matrix1.size(2) * matrix2.size(2))
 
 
-def one_hot(indices, depth):
-    """
-    Returns a one-hot tensor.
-    This is a PyTorch equivalent of Tensorflow's tf.one_hot.
+# def one_hot(indices, depth):
+#     """
+#     Returns a one-hot tensor.
+#     This is a PyTorch equivalent of Tensorflow's tf.one_hot.
         
-    Parameters:
-      indices:  a (n_batch, m) Tensor or (m) Tensor.
-      depth: a scalar. Represents the depth of the one hot dimension.
-    Returns: a (n_batch, m, depth) Tensor or (m, depth) Tensor.
-    """
+#     Parameters:
+#       indices:  a (n_batch, m) Tensor or (m) Tensor.
+#       depth: a scalar. Represents the depth of the one hot dimension.
+#     Returns: a (n_batch, m, depth) Tensor or (m, depth) Tensor.
+#     """
 
-    encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
-    index = indices.view(indices.size()+torch.Size([1]))
-    encoded_indicies = encoded_indicies.scatter_(1,index,1)
+#     encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
+#     index = indices.view(indices.size()+torch.Size([1]))
+#     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
-    return encoded_indicies
+#     return encoded_indicies
