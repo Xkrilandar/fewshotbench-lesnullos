@@ -156,7 +156,7 @@ class MetaOptNet(MetaTemplate):
 
         # train
         for i, (x, y) in enumerate(train_loader):
-            print("x0", x[0].size(1))
+            print("x0", x.size(1))
             if isinstance(x, list):
                 self.n_query = x[0].size(1) - self.n_support
                 
