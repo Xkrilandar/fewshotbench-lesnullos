@@ -21,10 +21,13 @@ class MetaOptNet(MetaTemplate):
         z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
 
         support_labels = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
-        print("support_labels", support_labels)
-        print("z_support", z_support)
+
+        support_labels_cpu = support_labels.cpu().numpy()
+        z_support_cpu = z_support.cpu().detach().numpy()
+        print("support_labels", support_labels_cpu)
+        print("z_support", z_support_cpu)
         clf = make_pipeline(StandardScaler(), SVC(kernel='linear', C=1))
-        clf.fit(z_support, support_labels)
+        clf.fit(z_support_cpu, support_labels_cpu)
         
         scores = clf.decision_function(z_query)
         
