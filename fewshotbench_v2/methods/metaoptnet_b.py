@@ -74,7 +74,7 @@ class MetaOptNet(MetaTemplate):
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-        label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()).sorted())}
+        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(original_labels).tolist())))}
         support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
@@ -131,7 +131,7 @@ class MetaOptNet(MetaTemplate):
         scores = self.set_forward(x, y_support)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
-        label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()).sorted())}
+        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
         y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         ret = self.loss_fn(scores, y_query)
         return ret
@@ -187,6 +187,7 @@ class MetaOptNet(MetaTemplate):
 
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
+        print(topk_ind)
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
         return float(top1_correct), len(y_query)
     
