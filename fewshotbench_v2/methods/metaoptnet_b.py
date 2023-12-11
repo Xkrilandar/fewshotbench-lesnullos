@@ -162,8 +162,7 @@ class MetaOptNet(MetaTemplate):
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(original_labels).tolist())))}
-        support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
+        support_labels = torch.Tensor(map_labels(original_labels)).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
@@ -197,9 +196,9 @@ class MetaOptNet(MetaTemplate):
         scores = self.set_forward(x)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
-        label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
-        self.y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
-        ret = self.loss_fn(scores, self.y_query)
+        
+        self.y_query = torch.Tensor(map_labels(y_query)).to('cuda')
+        ret = self.loss_fn(scores, y_query)
         return ret
     
     def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
@@ -241,48 +240,49 @@ class MetaOptNet(MetaTemplate):
                                                                         avg_loss / float(i + 1)))
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
-    # def correct(self, x, y):
-    #     _, y_query = self.parse_feature(y, is_feature=True)
-    #     scores = self.set_forward(x)
-    #     #y_query = np.repeat(range(self.n_way), self.n_query))
-    #     y_query = y_query.reshape(-1)
-    #     label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(y_query).tolist())))}
-    #     y_query = [label_mapping[label.item()] for label in y_query]
-    #     _, topk_labels = scores.data.topk(1, 1, True, True)
-    #     topk_ind = topk_labels.cpu().numpy()
-    #     top1_correct = np.sum(topk_ind[:, 0] == y_query)
-    #     return float(top1_correct), len(y_query)
+    def correct(self, x, y):
+        _, y_query = self.parse_feature(y, is_feature=True)
+        scores = self.set_forward(x)
+        #y_query = np.repeat(range(self.n_way), self.n_query))
+        y_query = y_query.reshape(-1)
+        y_query = map_labels(y_query)
+        _, topk_labels = scores.data.topk(1, 1, True, True)
+        topk_ind = topk_labels.cpu().numpy()
+        top1_correct = np.sum(topk_ind[:, 0] == y_query)
+        return float(top1_correct), len(y_query)
     
-    # def test_loop(self, test_loader, record=None, return_std=False):
-    #     correct = 0
-    #     count = 0
-    #     acc_all = []
+    def test_loop(self, test_loader, record=None, return_std=False):
+        correct = 0
+        count = 0
+        acc_all = []
 
-    #     iter_num = len(test_loader)
-    #     for i, (x, y) in enumerate(test_loader):
-    #         if isinstance(x, list):
-    #             self.n_query = x[0].size(1) - self.n_support
-    #             if self.change_way:
-    #                 self.n_way = x[0].size(0)
-    #         else: 
-    #             self.n_query = x.size(1) - self.n_support
-    #             if self.change_way:
-    #                 self.n_way = x.size(0)
-    #         correct_this, count_this = self.correct(x, y)
-    #         acc_all.append(correct_this / count_this * 100)
+        iter_num = len(test_loader)
+        for i, (x, y) in enumerate(test_loader):
+            if isinstance(x, list):
+                self.n_query = x[0].size(1) - self.n_support
+                if self.change_way:
+                    self.n_way = x[0].size(0)
+            else: 
+                self.n_query = x.size(1) - self.n_support
+                if self.change_way:
+                    self.n_way = x.size(0)
+            correct_this, count_this = self.correct(x, y)
+            acc_all.append(correct_this / count_this * 100)
 
-    #     acc_all = np.asarray(acc_all)
-    #     acc_mean = np.mean(acc_all)
-    #     acc_std = np.std(acc_all)
-    #     print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
+        acc_all = np.asarray(acc_all)
+        acc_mean = np.mean(acc_all)
+        acc_std = np.std(acc_all)
+        print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
 
-    #     if return_std:
-    #         return acc_mean, acc_std
-    #     else:
-    #         return acc_mean
+        if return_std:
+            return acc_mean, acc_std
+        else:
+            return acc_mean
 
 
-
+def map_labels(labels):
+    label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(labels).tolist())))}
+    return [label_mapping[label.item()] for label in labels]
 
 def computeGramMatrix(A, B):
     """
