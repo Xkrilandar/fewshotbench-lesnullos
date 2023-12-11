@@ -40,7 +40,7 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward(self, x, y, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
-        y_support, y_query = self.parse_feature(y, True)
+        #y_support, y_query = self.parse_feature(y, True)
         # print("y_support", y_support, "y_query", y_query)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
@@ -77,7 +77,7 @@ class MetaOptNet(MetaTemplate):
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
 
-        #y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
+        y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
 
         original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
@@ -190,7 +190,7 @@ class MetaOptNet(MetaTemplate):
         # print("topk_inddddddd", topk_ind[:, 0])
         # print("y_queryyyyyyyyyyy", y_query)
         top1_correct = np.sum(topk_ind[:, 0] == y_query)
-        print("y_query", y_query, "topk_labels", topk_labels)
+        #print("y_query", y_query, "topk_labels", topk_labels)
         
         return float(top1_correct), len(y_query)
     
@@ -216,7 +216,7 @@ class MetaOptNet(MetaTemplate):
         acc_mean = np.mean(acc_all)
         acc_std = np.std(acc_all)
         print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
-        sys.exit()
+        #sys.exit()
         if return_std:
             return acc_mean, acc_std
         else:
