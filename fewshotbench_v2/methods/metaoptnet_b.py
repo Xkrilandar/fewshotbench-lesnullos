@@ -38,7 +38,7 @@ class MetaOptNet(MetaTemplate):
         self.C_reg = 0.1
 
 
-    def set_forward(self, x, y_support, is_feature=False):
+    def set_forward(self, x, y_support, is_feature=False, method=1):
         z_support, z_query = self.parse_feature(x, is_feature=False)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
@@ -68,18 +68,21 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-        support_labels = torch.tensor(map_labels(original_labels))
-        support_labels_one_hot = one_hot(support_labels, self.n_way).to('cuda') # (tasks_per_batch * n_support, n_support)
-        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
-        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
-        
-        
-        self.qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
+        if method == 2:
+            qp_sol = self.qp_solve_2(y_support, z_support, n_support, tasks_per_batch)
+        if method==1:
+            original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+            support_labels = torch.tensor(map_labels(original_labels))
+            support_labels_one_hot = one_hot(support_labels, self.n_way).to('cuda') # (tasks_per_batch * n_support, n_support)
+            support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
+            support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
+            
+            
+            qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
         compatibility = computeGramMatrix(z_support, z_query)
         compatibility = compatibility.float()
         compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
-        qp_sol = self.qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
+        qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
         logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
@@ -92,7 +95,7 @@ class MetaOptNet(MetaTemplate):
     def set_forward_loss(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
-        scores = self.set_forward(x,y_support)
+        scores = self.set_forward(x,y_support, method = 2)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
         y_query = torch.tensor(map_labels(y_query)).to('cuda')
@@ -135,7 +138,7 @@ class MetaOptNet(MetaTemplate):
 
     def correct(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
-        scores = self.set_forward(x, y_support)
+        scores = self.set_forward(x, y_support, method = 2)
         #y_query = np.repeat(range(self.n_way), self.n_query))
         y_query = y_query.reshape(-1)
         y_query = map_labels(y_query)
@@ -209,7 +212,26 @@ class MetaOptNet(MetaTemplate):
         maxIter = 15
         return QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
 
+    def qp_solve_2(self, support_labels, support, n_support, tasks_per_batch):
+        kernel_matrix = computeGramMatrix(support, support)
+        V = (support_labels * self.n_way - torch.ones(tasks_per_batch, n_support, self.n_way).cuda()) / (self.n_way - 1)
+        G = computeGramMatrix(V, V).detach()
+        G = kernel_matrix * G
+        
+        e = Variable(-1.0 * torch.ones(tasks_per_batch, n_support))
+        id_matrix = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support)
+        C = Variable(torch.cat((id_matrix, -id_matrix), 1))
+        h = Variable(torch.cat((self.C_reg * torch.ones(tasks_per_batch, n_support), torch.zeros(tasks_per_batch, n_support)), 1))
+        dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
 
+        G, e, C, h = [x.cuda() for x in [G, e, C, h]]
+            
+        # Solve the following QP to fit SVM:
+        #        \hat z =   argmin_z 1/2 z^T G z + e^T z
+        #                 subject to Cz <= h
+        # We use detach() to prevent backpropagation to fixed variables.
+        return QPFunction(verbose=False)(G, e.detach(), C.detach(), h.detach(), dummy.detach(), dummy.detach())
+    
 def map_labels(labels):
     label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(labels).tolist())))}
     return [label_mapping[label.item()] for label in labels]
