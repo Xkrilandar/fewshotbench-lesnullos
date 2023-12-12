@@ -127,6 +127,7 @@ class MetaOptNet(MetaTemplate):
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
         scores = self.set_forward(x,y_support, method = METHOD)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
+        print("scooore", scores.shape)
         y_query = y_query.reshape(-1)
         y_query = torch.tensor(map_labels(y_query)).to('cuda')
         ret = self.loss_fn(scores, y_query)
