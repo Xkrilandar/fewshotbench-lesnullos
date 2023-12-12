@@ -30,11 +30,11 @@ class MetaOptNet(MetaTemplate):
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
         qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
-        compatibility = computeGramMatrix(z_query, z_query)
+        compatibility = computeGramMatrix(z_support, z_query)
         compatibility = compatibility.float()
-        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_query, n_query, self.n_way)
+        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
         qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_query, n_query, self.n_way)
+        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
 
@@ -133,7 +133,6 @@ class MetaOptNet(MetaTemplate):
 
         id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
-
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
@@ -151,12 +150,17 @@ class MetaOptNet(MetaTemplate):
         maxIter = 1
         return QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
     
+
+
+    
 def map_labels(labels):
     label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(labels).tolist())))}
     return [label_mapping[label.item()] for label in labels]
 
 def computeGramMatrix(A, B):
     return torch.bmm(A, B.transpose(1,2))
+
+
 
 def batched_kronecker(matrix1, matrix2):
     matrix1_flatten = matrix1.reshape(matrix1.size()[0], -1)
