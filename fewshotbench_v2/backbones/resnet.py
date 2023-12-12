@@ -6,7 +6,7 @@ from backbones.blocks import Conv2d_fw, BatchNorm2d_fw, init_layer, Flatten, Sim
 class ResNet(nn.Module):
     maml = False  # Default
 
-    def __init__(self, block, list_of_num_layers, list_of_out_dims, flatten=True):
+    def __init__(self, x_dim, block, list_of_num_layers, list_of_out_dims, flatten=True):
         # list_of_num_layers specifies number of layers in each stage
         # list_of_out_dims specifies number of output channel for each stage
         super(ResNet, self).__init__()
@@ -28,7 +28,7 @@ class ResNet(nn.Module):
 
         trunk = [conv1, bn1, relu, pool1]
 
-        indim = 64
+        indim = x_dim
         for i in range(4):
 
             for j in range(list_of_num_layers[i]):
