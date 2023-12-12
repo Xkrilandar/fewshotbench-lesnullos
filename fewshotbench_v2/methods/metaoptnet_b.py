@@ -44,8 +44,11 @@ class MetaOptNet(MetaTemplate):
         print(z_support.size())
         print(z_query.size())
 
+        kernel_matrix = torch.bmm(z_support.unsqueeze(1), z_support.unsqueeze(2)).squeeze()
+        print(kernel_matrix.size())
+        #kernel_matrix = computeGramMatrix(z_support, z_support)
 
-        kernel_matrix = computeGramMatrix(z_support, z_support)
+
         
 
         id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
