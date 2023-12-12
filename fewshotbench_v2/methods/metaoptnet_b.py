@@ -39,7 +39,10 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
+        print(z_support.size())
+        print(z_query.size())
         kernel_matrix = computeGramMatrix(z_support, z_support)
+        
 
         id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
@@ -63,13 +66,15 @@ class MetaOptNet(MetaTemplate):
         
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
-        dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
+
         #print (G.size())
         #This part is for the inequality constraints:
         #\alpha^m_i <= C^m_i \forall m,i
         #where C^m_i = C if m  = y_i,
         #C^m_i = 0 if m != y_i.
         id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
+
+        
         C = Variable(id_matrix_1)
         h = Variable(self.C_reg * support_labels_one_hot)
 
@@ -90,7 +95,7 @@ class MetaOptNet(MetaTemplate):
         maxIter = 15
         qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
-
+        print("qp_sol", qp_sol, qp_sol.size())
         # Compute the classification score.
         compatibility = computeGramMatrix(z_support, z_query)
         compatibility = compatibility.float()
@@ -107,7 +112,7 @@ class MetaOptNet(MetaTemplate):
         y_query = Variable(y_query.cuda())
 
         scores = self.set_forward(x)
-        print(scores.size())
+        print(scores.size()) # this should be 75 5, is 5 15 5 currently
         sys.exit()
         return self.loss_fn(scores, y_query)
     
