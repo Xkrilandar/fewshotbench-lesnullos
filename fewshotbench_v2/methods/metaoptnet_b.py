@@ -8,6 +8,7 @@ from methods.meta_template import MetaTemplate
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
+import sys
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support):
@@ -44,5 +45,7 @@ class MetaOptNet(MetaTemplate):
 
         
         scores = self.set_forward(x)
+        print(scores.size())
+        sys.exit()
         targets = torch.ones_like(scores)
         return self.loss_fn(scores, targets )
