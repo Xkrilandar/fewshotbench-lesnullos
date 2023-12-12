@@ -3,6 +3,7 @@ import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
+from utils.data_utils import one_hot
 from qpth.qp import QPFunction
 import cvxpy as cp
 import wandb
@@ -67,9 +68,7 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        print("zzzzzzzzz", z_support.shape)
-        print("yyyyyyyyyyyyyyyyyyyy", y_support.shape)
-        original_labels = z_support.reshape(tasks_per_batch * n_support, 64) # ??? OU PAS)
+        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         support_labels = torch.tensor(map_labels(original_labels)).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
@@ -256,19 +255,19 @@ def batched_kronecker(matrix1, matrix2):
     return torch.bmm(matrix1_flatten.unsqueeze(2), matrix2_flatten.unsqueeze(1)).reshape([matrix1.size()[0]] + list(matrix1.size()[1:]) + list(matrix2.size()[1:])).permute([0, 1, 3, 2, 4]).reshape(matrix1.size(0), matrix1.size(1) * matrix2.size(1), matrix1.size(2) * matrix2.size(2))
 
 
-def one_hot(indices, depth):
-    """
-    Returns a one-hot tensor.
-    This is a PyTorch equivalent of Tensorflow's tf.one_hot.
+# def one_hot(indices, depth):
+#     """
+#     Returns a one-hot tensor.
+#     This is a PyTorch equivalent of Tensorflow's tf.one_hot.
         
-    Parameters:
-      indices:  a (n_batch, m) Tensor or (m) Tensor.
-      depth: a scalar. Represents the depth of the one hot dimension.
-    Returns: a (n_batch, m, depth) Tensor or (m, depth) Tensor.
-    """
+#     Parameters:
+#       indices:  a (n_batch, m) Tensor or (m) Tensor.
+#       depth: a scalar. Represents the depth of the one hot dimension.
+#     Returns: a (n_batch, m, depth) Tensor or (m, depth) Tensor.
+#     """
 
-    encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
-    index = indices.view(indices.size()+torch.Size([1]))
-    encoded_indicies = encoded_indicies.scatter_(1,index,1)
+#     encoded_indicies = torch.zeros(indices.size() + torch.Size([depth])).cuda()
+#     index = indices.view(indices.size()+torch.Size([1]))
+#     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
-    return encoded_indicies
+#     return encoded_indicies
