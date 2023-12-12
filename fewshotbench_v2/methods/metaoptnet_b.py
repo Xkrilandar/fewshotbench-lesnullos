@@ -37,9 +37,8 @@ class MetaOptNet(MetaTemplate):
         self.C_reg = 0.1
 
 
-    def set_forward(self, x, y, is_feature=False):
+    def set_forward(self, x, y_support, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature=False)
-        y_support, y_query = self.parse_feature(y, is_feature=True)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
@@ -69,7 +68,7 @@ class MetaOptNet(MetaTemplate):
         
         #\alpha is an (n_support, n_way) matrix
         
-        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        original_labels = z_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         support_labels = torch.tensor(map_labels(original_labels)).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
@@ -93,7 +92,7 @@ class MetaOptNet(MetaTemplate):
     def set_forward_loss(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
-        scores = self.set_forward(x,y)
+        scores = self.set_forward(x,y_support)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
         y_query = torch.tensor(map_labels(y_query)).to('cuda')
@@ -119,12 +118,7 @@ class MetaOptNet(MetaTemplate):
                 self.n_query = x.size(1) - self.n_support
                 if self.change_way:
                     self.n_way = x.size(0)  
-                # assert self.n_way == x.size(
-                #     0), f"MAML do not support way change, n_way is {self.n_way} but x.size(0) is {x.size(0)}"
 
-            # Labels are assigned later if classification task
-            # if self.type == "classification":
-            #     y = None
 
             loss = self.set_forward_loss(x, y)
             # loss_all.append(loss)
@@ -140,8 +134,8 @@ class MetaOptNet(MetaTemplate):
                 wandb.log({'loss/train': avg_loss / float(i + 1)})
 
     def correct(self, x, y):
-        _, y_query = self.parse_feature(y, is_feature=True)
-        scores = self.set_forward(x, y)
+        y_support, y_query = self.parse_feature(y, is_feature=True)
+        scores = self.set_forward(x, y_support)
         #y_query = np.repeat(range(self.n_way), self.n_query))
         y_query = y_query.reshape(-1)
         y_query = map_labels(y_query)
