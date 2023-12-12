@@ -29,7 +29,7 @@ import wandb
 #         # L2 regularization loss (optional)
 #         reg_loss = torch.norm(self.weights, p=2)
 #         return reg_loss
-METHOD = 2
+METHOD = 3
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
