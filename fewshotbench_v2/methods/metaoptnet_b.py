@@ -29,7 +29,7 @@ import wandb
 #         # L2 regularization loss (optional)
 #         reg_loss = torch.norm(self.weights, p=2)
 #         return reg_loss
-METHOD = 1
+METHOD = 3
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
@@ -78,6 +78,7 @@ class MetaOptNet(MetaTemplate):
             logits = logits * compatibility
             logits = logits.view(tasks_per_batch, n_query, self.n_way)
             logits = torch.sum(logits, 2)
+            logits = logits.view(-1, self.n_way)
 
         if method==1:
             original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
@@ -115,6 +116,7 @@ class MetaOptNet(MetaTemplate):
             logits = torch.sum(logits, 2)
 
             logits = logits.transpose(1, 2)
+            logits = logits.view(-1, self.n_way)
 
 
         
