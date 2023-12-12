@@ -104,7 +104,7 @@ class MetaOptNet(MetaTemplate):
         print("qp_sol", qp_sol, qp_sol.size())
         # Compute the classification score.
         print("z_query", z_query)
-        
+
         compatibility = computeGramMatrix(z_support, z_query)
         compatibility = compatibility.float()
         compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
@@ -144,9 +144,9 @@ def computeGramMatrix(A, B):
     Returns: a (n_batch, n, m) Tensor.
     """
     
-    assert(A.dim() == 3)
-    assert(B.dim() == 3)
-    assert(A.size(0) == B.size(0) and A.size(2) == B.size(2))
+    # assert(A.dim() == 3)
+    # assert(B.dim() == 3)
+    # assert(A.size(0) == B.size(0) and A.size(2) == B.size(2))
 
     return torch.bmm(A, B.transpose(1,2))
 
