@@ -29,6 +29,7 @@ import wandb
 #         # L2 regularization loss (optional)
 #         reg_loss = torch.norm(self.weights, p=2)
 #         return reg_loss
+METHOD = 3
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
@@ -77,7 +78,6 @@ class MetaOptNet(MetaTemplate):
             logits = logits * compatibility
             logits = logits.view(tasks_per_batch, n_query, self.n_way)
             logits = torch.sum(logits, 2)
-            print(logits)
 
         if method==1:
             original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
@@ -95,20 +95,39 @@ class MetaOptNet(MetaTemplate):
             logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
             logits = logits * compatibility
             logits = torch.sum(logits, 1)
+            # Reshape logits to the desired shape
+            logits = logits.view(-1, self.n_way)
+        if method == 3:
+            qp_sol = self.qp_solve_3(support_labels_one_hot, z_support, n_support, tasks_per_batch)
+            compatibility = computeGramMatrix(z_support, z_query) + torch.ones(tasks_per_batch, n_support, n_query).cuda()
+            compatibility = compatibility.float()
+            compatibility = compatibility.unsqueeze(1).expand(tasks_per_batch, self.n_way, n_support, n_query)
+            qp_sol = qp_sol.float()
+            qp_sol = qp_sol.reshape(tasks_per_batch, self.n_way, n_support)
+            A_i = torch.sum(qp_sol, 1)   # (tasks_per_batch, n_support)
+            A_i = A_i.unsqueeze(1).expand(tasks_per_batch, self.n_way, n_support)
+            qp_sol = qp_sol.float().unsqueeze(3).expand(tasks_per_batch, self.n_way, n_support, n_query)
+            Y_support_reshaped = self.Y_support.reshape(tasks_per_batch, self.n_way, n_support)
+            Y_support_reshaped = A_i * Y_support_reshaped
+            Y_support_reshaped = Y_support_reshaped.unsqueeze(3).expand(tasks_per_batch, self.n_way, n_support, n_query)
+            logits = (Y_support_reshaped - qp_sol) * compatibility
+
+            logits = torch.sum(logits, 2)
+
+            logits = logits.transpose(1, 2)
 
 
         
 
 
-            # Reshape logits to the desired shape
-            logits = logits.view(-1, self.n_way)
+            
 
         return logits
 
     def set_forward_loss(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
-        scores = self.set_forward(x,y_support, method = 2)
+        scores = self.set_forward(x,y_support, method = METHOD)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
         y_query = torch.tensor(map_labels(y_query)).to('cuda')
@@ -151,7 +170,7 @@ class MetaOptNet(MetaTemplate):
 
     def correct(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
-        scores = self.set_forward(x, y_support, method = 2)
+        scores = self.set_forward(x, y_support, method = METHOD)
         #y_query = np.repeat(range(self.n_way), self.n_query))
         y_query = y_query.reshape(-1)
         y_query = map_labels(y_query)
@@ -224,7 +243,54 @@ class MetaOptNet(MetaTemplate):
         # We use detach() to prevent backpropagation to fixed variables.
         maxIter = 15
         return QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
+    def qp_solve_3(self, support_labels, support, n_support, tasks_per_batch):
+        kernel_matrix = computeGramMatrix(support, support) + torch.ones(tasks_per_batch, n_support, n_support).cuda()
+    
+        id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
+        block_kernel_matrix = batched_kronecker(id_matrix_0, kernel_matrix)
+        
+        kernel_matrix_mask_x = support_labels.reshape(tasks_per_batch, n_support, 1).expand(tasks_per_batch, n_support, n_support)
+        kernel_matrix_mask_y = support_labels.reshape(tasks_per_batch, 1, n_support).expand(tasks_per_batch, n_support, n_support)
+        kernel_matrix_mask = (kernel_matrix_mask_x == kernel_matrix_mask_y).float()
+        
+        block_kernel_matrix_inter = kernel_matrix_mask * kernel_matrix
+        block_kernel_matrix += block_kernel_matrix_inter.repeat(1, self.n_way, self.n_way)
+        
+        kernel_matrix_mask_second_term = support_labels.reshape(tasks_per_batch, n_support, 1).expand(tasks_per_batch, n_support, n_support * self.n_way)
+        kernel_matrix_mask_second_term = kernel_matrix_mask_second_term == torch.arange(self.n_way).long().repeat(n_support).reshape(n_support, self.n_way).transpose(1, 0).reshape(1, -1).repeat(n_support, 1).cuda()
+        kernel_matrix_mask_second_term = kernel_matrix_mask_second_term.float()
+        
+        block_kernel_matrix -= (2.0 - 1e-4) * (kernel_matrix_mask_second_term * kernel_matrix.repeat(1, 1, self.n_way)).repeat(1, self.n_way, 1)
 
+        Y_support = one_hot(support_labels.view(tasks_per_batch * n_support), self.n_way)
+        Y_support = Y_support.view(tasks_per_batch, n_support, self.n_way)
+        Y_support = Y_support.transpose(1, 2)   # (tasks_per_batch, n_way, n_support)
+        self.Y_support = Y_support.reshape(tasks_per_batch, self.n_way * n_support)
+        
+        G = block_kernel_matrix
+
+        e = -2.0 * torch.ones(tasks_per_batch, self.n_way * n_support)
+        id_matrix = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
+                
+        C_mat = self.C_reg * torch.ones(tasks_per_batch, self.n_way * n_support).cuda() - self.C_reg * self.Y_support
+
+        C = Variable(torch.cat((id_matrix, -id_matrix), 1))
+        #C = Variable(torch.cat((id_matrix_masked, -id_matrix_masked), 1))
+        zer = torch.zeros(tasks_per_batch, self.n_way * n_support).cuda()
+        
+        h = Variable(torch.cat((C_mat, zer), 1))
+        
+        dummy = Variable(torch.Tensor()).cuda()      # We want to ignore the equality constraint.
+
+        G, e, C, h = [x.cuda() for x in [G, e, C, h]]
+
+        # Solve the following QP to fit SVM:
+        #        \hat z =   argmin_z 1/2 z^T G z + e^T z
+        #                 subject to Cz <= h
+        # We use detach() to prevent backpropagation to fixed variables.
+        #qp_sol = QPFunction(verbose=False)(G, e.detach(), C.detach(), h.detach(), dummy.detach(), dummy.detach())
+        return QPFunction(verbose=False)(G, e, C, h, dummy.detach(), dummy.detach())
+    
     def qp_solve_2(self, support_labels, support, n_support, tasks_per_batch):
         kernel_matrix = computeGramMatrix(support, support)
         V = (support_labels * self.n_way - torch.ones(tasks_per_batch, n_support, self.n_way).cuda()) / (self.n_way - 1)
