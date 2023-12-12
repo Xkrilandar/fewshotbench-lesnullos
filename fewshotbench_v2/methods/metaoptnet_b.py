@@ -70,12 +70,12 @@ class MetaOptNet(MetaTemplate):
         #\alpha is an (n_support, n_way) matrix
         if method == 2:
             qp_sol = self.qp_solve_2(y_support, z_support, n_support, tasks_per_batch)
-            compatibility = computeGramMatrix(query, support)
+            compatibility = computeGramMatrix(z_query, z_support)
             compatibility = compatibility.float()
 
             logits = qp_sol.float().unsqueeze(1).expand(tasks_per_batch, n_query, n_support)
             logits = logits * compatibility
-            logits = logits.view(tasks_per_batch, n_query, n_shot, n_way)
+            logits = logits.view(tasks_per_batch, n_query, self.n_shot, self.n_way)
             logits = torch.sum(logits, 2)
         if method==1:
             original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
