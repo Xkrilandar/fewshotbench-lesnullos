@@ -75,8 +75,9 @@ class MetaOptNet(MetaTemplate):
 
             logits = qp_sol.float().unsqueeze(1).expand(tasks_per_batch, n_query, n_support)
             logits = logits * compatibility
-            logits = logits.view(tasks_per_batch, n_query, self.n_shot, self.n_way)
+            logits = logits.view(tasks_per_batch, n_query, n_support, self.n_way)
             logits = torch.sum(logits, 2)
+
         if method==1:
             original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
             support_labels = torch.tensor(map_labels(original_labels))
