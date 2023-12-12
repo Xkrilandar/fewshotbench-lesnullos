@@ -3,7 +3,7 @@ defaults:
   - method: maml
 
 model: FCNet
-n_way: ???
+n_way: 10
 n_shot: ???
 n_query: ???
 
