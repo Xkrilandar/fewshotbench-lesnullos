@@ -151,17 +151,12 @@ class MetaOptNet(MetaTemplate):
         maxIter = 1
         return QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
     
-
-
-    
 def map_labels(labels):
     label_mapping = {label: i for i, label in enumerate(sorted(set(torch.unique(labels).tolist())))}
     return [label_mapping[label.item()] for label in labels]
 
 def computeGramMatrix(A, B):
     return torch.bmm(A, B.transpose(1,2))
-
-
 
 def batched_kronecker(matrix1, matrix2):
     matrix1_flatten = matrix1.reshape(matrix1.size()[0], -1)
