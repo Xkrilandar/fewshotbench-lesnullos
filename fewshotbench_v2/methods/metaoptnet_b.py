@@ -22,7 +22,7 @@ class MetaOptNet(MetaTemplate):
         tasks_per_batch = z_query.size(0)
         n_support = z_support.size(1)
         n_query = z_query.size(1)
-
+    
         # assert(z_query.dim() == 3)
         # assert(z_support.dim() == 3)
         # assert(z_query.size(0) == z_support.size(0) and z_query.size(2) == z_support.size(2))
@@ -122,8 +122,9 @@ class MetaOptNet(MetaTemplate):
         qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
         logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
         logits = logits * compatibility
+        print(logits, logits.size())
         logits = torch.sum(logits, 1)
-
+        print(logits.size())
         return logits
 
     def set_forward_loss(self, x):
