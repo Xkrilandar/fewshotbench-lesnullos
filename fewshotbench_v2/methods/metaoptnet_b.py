@@ -202,7 +202,7 @@ class MetaOptNet(MetaTemplate):
         #        \hat z =   argmin_z 1/2 z^T G z + e^T z
         #                 subject to Cz <= h
         # We use detach() to prevent backpropagation to fixed variables.
-        maxIter = 3
+        maxIter = 1
         return QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
     def qp_solve_3(self, support_labels, support, n_support, tasks_per_batch):
         kernel_matrix = computeGramMatrix(support, support) + torch.ones(tasks_per_batch, n_support, n_support).cuda()
