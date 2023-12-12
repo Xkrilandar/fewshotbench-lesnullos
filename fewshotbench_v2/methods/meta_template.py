@@ -56,7 +56,6 @@ class MetaTemplate(nn.Module):
 
     def correct(self, x):
         scores = self.set_forward(x)
-        print("scores", scores)
         y_query = np.repeat(range(self.n_way), self.n_query)
 
         topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
