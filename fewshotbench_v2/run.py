@@ -112,7 +112,9 @@ def train(train_loader, val_loader, model, cfg):
     wandb.config.update({"optimizer_details": opt_to_dict(optimizer)})
 
     max_acc = -1
-
+    model.eval()
+    acc = model.test_loop(val_loader)
+    print(f"Epoch 0: {acc:.2f}")
     for epoch in range(cfg.method.start_epoch, cfg.method.stop_epoch):
         wandb.log({'epoch': epoch})
         model.train()
