@@ -2,9 +2,9 @@ defaults:
   - dataset: tabula_muris
   - method: maml
 
-model: ResNet
+model: FCNet
 n_way: 20
-n_shot: ???
+n_shot: 10
 n_query: ???
 
 mode: train
@@ -17,7 +17,7 @@ exp:
   val_freq: 1
 
 optimizer: Adam
-lr: 0.001
+lr: 0.0001
 optimizer_cls:
   _target_: torch.optim.${optimizer}
   lr: ${lr}
