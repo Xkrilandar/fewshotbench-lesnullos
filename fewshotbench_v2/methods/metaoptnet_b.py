@@ -42,6 +42,7 @@ class MetaOptNet(MetaTemplate):
         y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
         y_query = Variable(y_query.cuda())
 
-        targets = torch.ones_like(scores)
+        
         scores = self.set_forward(x)
+        targets = torch.ones_like(scores)
         return self.loss_fn(scores, targets )
