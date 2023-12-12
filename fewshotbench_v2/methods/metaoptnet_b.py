@@ -32,9 +32,9 @@ class MetaOptNet(MetaTemplate):
         qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
         compatibility = computeGramMatrix(z_query, z_query)
         compatibility = compatibility.float()
-        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_support, self.n_way)
+        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_query, n_query, self.n_way)
         qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_support, self.n_way)
+        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_query, n_query, self.n_way)
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
 
