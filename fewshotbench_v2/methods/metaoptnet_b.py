@@ -79,6 +79,7 @@ class MetaOptNet(MetaTemplate):
             logits = logits.view(tasks_per_batch, n_query, self.n_way)
             logits = torch.sum(logits, 2)
             logits = logits.view(-1, self.n_way)
+            print(logits.shape)
 
         if method==1:
             original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
