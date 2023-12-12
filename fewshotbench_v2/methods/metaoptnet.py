@@ -19,10 +19,10 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
-
+        print(z_query.size())
         z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
         z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
-
+        print(z_query.size())
         support_labels = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
 
         support_labels_cpu = support_labels.cpu().detach().numpy()

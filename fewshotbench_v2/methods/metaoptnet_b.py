@@ -97,6 +97,7 @@ class MetaOptNet(MetaTemplate):
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
         print("qp_sol", qp_sol, qp_sol.size())
         # Compute the classification score.
+        print("z_query", z_query)
         compatibility = computeGramMatrix(z_support, z_query)
         compatibility = compatibility.float()
         compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
