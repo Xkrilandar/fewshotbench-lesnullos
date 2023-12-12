@@ -29,7 +29,6 @@ import wandb
 #         # L2 regularization loss (optional)
 #         reg_loss = torch.norm(self.weights, p=2)
 #         return reg_loss
-METHOD = 2
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
@@ -39,7 +38,7 @@ class MetaOptNet(MetaTemplate):
         self.C_reg = 0.1
 
 
-    def set_forward(self, x, y_support, is_feature=False, method=1):
+    def set_forward(self, x, y_support, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature=False)
         # z_support = z_support.contiguous()
         # z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
@@ -69,67 +68,33 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        if method == 2:
-            qp_sol = self.qp_solve_2(y_support, z_support, n_support, tasks_per_batch)
-            compatibility = computeGramMatrix(z_support, z_query)
-            compatibility = compatibility.float()
-            compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
-            #qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-            logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
-            logits = logits * compatibility
-            logits = torch.sum(logits, 1)
-            # Reshape logits to the desired shape
-            logits = logits.view(-1, self.n_way)
-
-        if method==1:
-            original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
-            support_labels = torch.tensor(map_labels(original_labels))
-            support_labels_one_hot = one_hot(support_labels, self.n_way).to('cuda') # (tasks_per_batch * n_support, n_support)
-            support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
-            support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
-            
-            
-            qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
-            compatibility = computeGramMatrix(z_support, z_query)
-            compatibility = compatibility.float()
-            compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
-            qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-            logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
-            logits = logits * compatibility
-            logits = torch.sum(logits, 1)
-            # Reshape logits to the desired shape
-            logits = logits.view(-1, self.n_way)
-        if method == 3:
-            y_support = y_support.reshape(tasks_per_batch * n_support)
-            y_support = torch.tensor(map_labels(y_support)).cuda()
-            qp_sol = self.qp_solve_3(y_support, z_support, n_support, tasks_per_batch)
-            compatibility = computeGramMatrix(z_support, z_query) + torch.ones(tasks_per_batch, n_support, n_query).cuda()
-            compatibility = compatibility.float()
-            compatibility = compatibility.unsqueeze(1).expand(tasks_per_batch, self.n_way, n_support, n_query)
-            qp_sol = qp_sol.float()
-            qp_sol = qp_sol.reshape(tasks_per_batch, self.n_way, n_support)
-            A_i = torch.sum(qp_sol, 1)   # (tasks_per_batch, n_support)
-            A_i = A_i.unsqueeze(1).expand(tasks_per_batch, self.n_way, n_support)
-            qp_sol = qp_sol.float().unsqueeze(3).expand(tasks_per_batch, self.n_way, n_support, n_query)
-            Y_support_reshaped = self.Y_support.reshape(tasks_per_batch, self.n_way, n_support)
-            Y_support_reshaped = A_i * Y_support_reshaped
-            Y_support_reshaped = Y_support_reshaped.unsqueeze(3).expand(tasks_per_batch, self.n_way, n_support, n_query)
-            logits = (Y_support_reshaped - qp_sol) * compatibility
-
-            logits = torch.sum(logits, 2)
-
-            logits = logits.transpose(1, 2)
-            logits = logits.view(-1, self.n_way)
-
+        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        support_labels = torch.tensor(map_labels(original_labels))
+        support_labels_one_hot = one_hot(support_labels, self.n_way).to('cuda') # (tasks_per_batch * n_support, n_support)
+        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
+        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
+        
+        
+        qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
+        compatibility = computeGramMatrix(z_support, z_query)
+        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
+        qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
+        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
+        logits = logits * compatibility
+        logits = torch.sum(logits, 1)
+        # Reshape logits to the desired shape
+        logits = logits.view(-1, self.n_way)
         return logits
 
     def set_forward_loss(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
-        scores = self.set_forward(x,y_support, method = METHOD)
+        scores = self.set_forward(x,y_support)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
         y_query = torch.tensor(map_labels(y_query)).to('cuda')
+        acc = count_accuracy(scores, y_query.reshape(-1))
+        print(acc)
         ret = self.loss_fn(scores, y_query)
         return ret
     
@@ -169,7 +134,7 @@ class MetaOptNet(MetaTemplate):
 
     def correct(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
-        scores = self.set_forward(x, y_support, method = METHOD)
+        scores = self.set_forward(x, y_support)
         #y_query = np.repeat(range(self.n_way), self.n_query))
         y_query = y_query.reshape(-1)
         y_query = map_labels(y_query)
@@ -329,7 +294,7 @@ def computeGramMatrix(A, B):
     assert(B.dim() == 3)
     assert(A.size(0) == B.size(0) and A.size(2) == B.size(2))
 
-    return torch.bmm(A, B.transpose(1,2))
+    return torch.bmm(A, B.transpose(1,2)).float()
 
 def solve_qp(Q, c, G, h, A, b, n_support):
     # Create a variable to optimize
@@ -371,3 +336,9 @@ def batched_kronecker(matrix1, matrix2):
 #     encoded_indicies = encoded_indicies.scatter_(1,index,1)
     
 #     return encoded_indicies
+def count_accuracy(logits, label):
+    pred = torch.argmax(logits, dim=1).view(-1)
+    label = label.view(-1)
+    accuracy = 100 * pred.eq(label).float().mean()
+    return accuracy
+
