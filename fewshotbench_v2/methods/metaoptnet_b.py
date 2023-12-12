@@ -52,7 +52,7 @@ class MetaOptNet(MetaTemplate):
 
         
 
-        id_matrix_0 = torch.eye(self.n_way).expand(self.n_way * self.n_way).cuda()
+        id_matrix_0 = torch.eye(self.n_way*self.n_way).cuda()
         print(id_matrix_0.size()) # 5 5 5 
 
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
