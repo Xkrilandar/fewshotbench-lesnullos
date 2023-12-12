@@ -39,21 +39,22 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
-        z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
+        # z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
+        # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
         print(z_support.size()) # 25 64
         print(z_query.size()) # 75 64
 
-        kernel_matrix = torch.bmm(z_support.unsqueeze(1), z_support.unsqueeze(2)).squeeze()
+        # kernel_matrix = torch.bmm(z_support.unsqueeze(1), z_support.unsqueeze(2)).squeeze()
+        
+        kernel_matrix = computeGramMatrix(z_support, z_support)
         print(kernel_matrix.size()) # 25
-        #old_kernel_matrix = computeGramMatrix(z_support, z_support)
 
 
         
 
         id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
-        print(id_matrix_0.size())
-        
+        print(id_matrix_0.size()) # 5 5 5 
+
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         #This seems to help avoid PSD error from the QP solver.
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
