@@ -137,7 +137,7 @@ class MetaOptNet(MetaTemplate):
 
     def correct(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
-        scores = self.set_forward(x, y_support, method = METHOD)
+        scores = self.set_forward(x, y_support)
         #y_query = np.repeat(range(self.n_way), self.n_query))
         y_query = y_query.reshape(-1)
         y_query = map_labels(y_query)
