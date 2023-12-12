@@ -100,7 +100,7 @@ class MetaOptNet(MetaTemplate):
             logits = logits.view(-1, self.n_way)
         if method == 3:
             y_support = y_support.reshape(tasks_per_batch * n_support)
-            y_support = torch.tensor(map_labels(y_support))
+            y_support = torch.tensor(map_labels(y_support)).cuda()
             qp_sol = self.qp_solve_3(y_support, z_support, n_support, tasks_per_batch)
             compatibility = computeGramMatrix(z_support, z_query) + torch.ones(tasks_per_batch, n_support, n_query).cuda()
             compatibility = compatibility.float()
@@ -262,7 +262,7 @@ class MetaOptNet(MetaTemplate):
         
         block_kernel_matrix -= (2.0 - 1e-4) * (kernel_matrix_mask_second_term * kernel_matrix.repeat(1, 1, self.n_way)).repeat(1, self.n_way, 1)
 
-        Y_support = one_hot(support_labels.view(tasks_per_batch * n_support), self.n_way).cuda()
+        Y_support = one_hot(support_labels.view(tasks_per_batch * n_support).cpu(), self.n_way).cuda()
         Y_support = Y_support.view(tasks_per_batch, n_support, self.n_way)
         Y_support = Y_support.transpose(1, 2)   # (tasks_per_batch, n_way, n_support)
         self.Y_support = Y_support.reshape(tasks_per_batch, self.n_way * n_support)
