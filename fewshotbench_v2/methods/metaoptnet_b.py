@@ -39,20 +39,20 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
-        z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
+        # z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
+        # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
         print(z_support.size()) # 25 64
         print(z_query.size()) # 75 64
 
-        kernel_matrix = torch.bmm(z_support.unsqueeze(1), z_support.unsqueeze(2)).squeeze()
+        # kernel_matrix = torch.bmm(z_support.unsqueeze(1), z_support.unsqueeze(2)).squeeze()
         
-        #kernel_matrix = computeGramMatrix(z_support, z_support)
-        print(kernel_matrix.size()) # 25
+        kernel_matrix = computeGramMatrix(z_support, z_support)
+        print(kernel_matrix.size()) # 5 5 5 
 
 
         
 
-        id_matrix_0 = torch.eye(self.n_way*self.n_way).cuda()
+        id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
         print(id_matrix_0.size()) # 5 5 5 
 
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
@@ -73,8 +73,12 @@ class MetaOptNet(MetaTemplate):
         # support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
         # query_labels = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
+        print(support_labels_one_hot.size())
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
+        print(support_labels_one_hot.size())
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
+        print(support_labels_one_hot.size())
+
         
 
         G = block_kernel_matrix
