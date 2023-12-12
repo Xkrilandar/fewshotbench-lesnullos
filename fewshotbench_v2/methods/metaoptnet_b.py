@@ -29,7 +29,7 @@ import wandb
 #         # L2 regularization loss (optional)
 #         reg_loss = torch.norm(self.weights, p=2)
 #         return reg_loss
-METHOD = 1
+METHOD = 2
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
@@ -71,15 +71,15 @@ class MetaOptNet(MetaTemplate):
         #\alpha is an (n_support, n_way) matrix
         if method == 2:
             qp_sol = self.qp_solve_2(y_support, z_support, n_support, tasks_per_batch)
-            compatibility = computeGramMatrix(z_query, z_support)
+            compatibility = computeGramMatrix(z_support, z_query)
             compatibility = compatibility.float()
-
-            logits = qp_sol.float().unsqueeze(1).expand(tasks_per_batch, n_query, n_support)
+            compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
+            qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
+            logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
             logits = logits * compatibility
-            logits = logits.view(tasks_per_batch, n_query, self.n_way)
-            logits = torch.sum(logits, 2)
+            logits = torch.sum(logits, 1)
+            # Reshape logits to the desired shape
             logits = logits.view(-1, self.n_way)
-            print(logits.shape)
 
         if method==1:
             original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
@@ -94,7 +94,6 @@ class MetaOptNet(MetaTemplate):
             compatibility = compatibility.float()
             compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
             qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-            print(qp_sol.shape)
             logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
             logits = logits * compatibility
             logits = torch.sum(logits, 1)
@@ -129,7 +128,6 @@ class MetaOptNet(MetaTemplate):
         #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
         scores = self.set_forward(x,y_support, method = METHOD)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
-        print("scooore", scores.shape)
         y_query = y_query.reshape(-1)
         y_query = torch.tensor(map_labels(y_query)).to('cuda')
         ret = self.loss_fn(scores, y_query)
