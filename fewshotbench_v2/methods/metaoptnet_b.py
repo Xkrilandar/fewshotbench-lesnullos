@@ -70,6 +70,13 @@ class MetaOptNet(MetaTemplate):
         #\alpha is an (n_support, n_way) matrix
         if method == 2:
             qp_sol = self.qp_solve_2(y_support, z_support, n_support, tasks_per_batch)
+            compatibility = computeGramMatrix(query, support)
+            compatibility = compatibility.float()
+
+            logits = qp_sol.float().unsqueeze(1).expand(tasks_per_batch, n_query, n_support)
+            logits = logits * compatibility
+            logits = logits.view(tasks_per_batch, n_query, n_shot, n_way)
+            logits = torch.sum(logits, 2)
         if method==1:
             original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
             support_labels = torch.tensor(map_labels(original_labels))
@@ -79,16 +86,20 @@ class MetaOptNet(MetaTemplate):
             
             
             qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
-        compatibility = computeGramMatrix(z_support, z_query)
-        compatibility = compatibility.float()
-        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
-        qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
-        logits = logits * compatibility
-        logits = torch.sum(logits, 1)
+            compatibility = computeGramMatrix(z_support, z_query)
+            compatibility = compatibility.float()
+            compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
+            qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
+            logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
+            logits = logits * compatibility
+            logits = torch.sum(logits, 1)
 
-        # Reshape logits to the desired shape
-        logits = logits.view(-1, self.n_way)
+
+        
+
+
+            # Reshape logits to the desired shape
+            logits = logits.view(-1, self.n_way)
 
         return logits
 
