@@ -6,7 +6,6 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 from methods.meta_template import MetaTemplate
-import sys
 
 
 class ProtoNet(MetaTemplate):
@@ -15,17 +14,13 @@ class ProtoNet(MetaTemplate):
         self.loss_fn = nn.CrossEntropyLoss()
 
     def set_forward(self, x, is_feature=False):
-        self.n_support = self.n_way
         z_support, z_query = self.parse_feature(x, is_feature)
 
         z_support = z_support.contiguous()
         z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
-        
 
         dists = euclidean_dist(z_query, z_proto)
-        print("dists", dists)
-        sys.exit()
         scores = -dists
         return scores
 
