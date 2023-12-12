@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 from methods.meta_template import MetaTemplate
+import sys
 
 
 class ProtoNet(MetaTemplate):
@@ -24,6 +25,7 @@ class ProtoNet(MetaTemplate):
 
         dists = euclidean_dist(z_query, z_proto)
         print("dists", dists)
+        sys.exit()
         scores = -dists
         return scores
 
