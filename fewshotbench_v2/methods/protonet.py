@@ -20,8 +20,10 @@ class ProtoNet(MetaTemplate):
         z_support = z_support.contiguous()
         z_proto = z_support.view(self.n_way, self.n_support, -1).mean(1)  # the shape of z is [n_data, n_dim]
         z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
+        
 
         dists = euclidean_dist(z_query, z_proto)
+        print("dists", dists)
         scores = -dists
         return scores
 
