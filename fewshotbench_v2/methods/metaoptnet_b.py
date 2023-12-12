@@ -5,7 +5,6 @@ from torch.autograd import Variable
 from methods.meta_template import MetaTemplate
 from utils.data_utils import one_hot
 from qpth.qp import QPFunction
-import cvxpy as cp
 import wandb
 
 
@@ -20,21 +19,19 @@ class MetaOptNet(MetaTemplate):
         z_support, z_query = self.parse_feature(x, is_feature=False)
 
         tasks_per_batch = z_query.size(0)
-        n_support = z_support.size(1)
-        n_query = z_query.size(1)
 
-        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        original_labels = y_support.reshape(tasks_per_batch * self.n_support) # ??? OU PAS)
         support_labels = torch.tensor(map_labels(original_labels))
         support_labels_one_hot = one_hot(support_labels, self.n_way).to('cuda') # (tasks_per_batch * n_support, n_support)
-        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
-        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
+        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, self.n_support, self.n_way)
+        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, self.n_support * self.n_way)
         
-        qp_sol = self.qp_solve(support_labels_one_hot, z_support, n_support, tasks_per_batch)
+        qp_sol = self.qp_solve(support_labels_one_hot, z_support, self.n_support, tasks_per_batch)
         compatibility = computeGramMatrix(z_support, z_query)
         compatibility = compatibility.float()
-        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
-        qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
-        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
+        compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, self.n_support, self.n_query, self.n_way)
+        qp_sol = qp_sol.reshape(tasks_per_batch, self.n_support, self.n_way)
+        logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, self.n_support, self.n_query, self.n_way)
         logits = logits * compatibility
         logits = torch.sum(logits, 1)
 
@@ -43,7 +40,6 @@ class MetaOptNet(MetaTemplate):
 
     def set_forward_loss(self, x, y):
         y_support, y_query = self.parse_feature(y, is_feature=True)
-        #qp_sol = solve_qp(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach(), n_support)
         scores = self.set_forward(x,y_support)
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
@@ -134,10 +130,12 @@ class MetaOptNet(MetaTemplate):
         id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
+
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
-        
+
         id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
+
         C = Variable(id_matrix_1)
         h = Variable(self.C_reg * support_labels_one_hot)
 
@@ -147,7 +145,7 @@ class MetaOptNet(MetaTemplate):
         b = Variable(torch.zeros(tasks_per_batch, n_support))
         G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
 
-        maxIter = 1
+        maxIter = 3
         return QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
     
 
@@ -159,8 +157,6 @@ def map_labels(labels):
 
 def computeGramMatrix(A, B):
     return torch.bmm(A, B.transpose(1,2))
-
-
 
 def batched_kronecker(matrix1, matrix2):
     matrix1_flatten = matrix1.reshape(matrix1.size()[0], -1)
