@@ -99,6 +99,7 @@ class MetaOptNet(MetaTemplate):
             # Reshape logits to the desired shape
             logits = logits.view(-1, self.n_way)
         if method == 3:
+            y_support = y_support.reshape(tasks_per_batch * n_support)
             y_support = torch.tensor(map_labels(y_support)).cuda()
             qp_sol = self.qp_solve_3(y_support, z_support, n_support, tasks_per_batch)
             compatibility = computeGramMatrix(z_support, z_query) + torch.ones(tasks_per_batch, n_support, n_query).cuda()
@@ -118,12 +119,6 @@ class MetaOptNet(MetaTemplate):
 
             logits = logits.transpose(1, 2)
             logits = logits.view(-1, self.n_way)
-
-
-        
-
-
-            
 
         return logits
 
