@@ -93,8 +93,6 @@ class MetaOptNet(MetaTemplate):
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
         y_query = torch.tensor(map_labels(y_query)).to('cuda')
-        acc = count_accuracy(scores, y_query.reshape(-1))
-        print(acc)
         ret = self.loss_fn(scores, y_query)
         return ret
     
@@ -104,7 +102,6 @@ class MetaOptNet(MetaTemplate):
         task_count = 0
         loss_all = []
         optimizer.zero_grad()
-
         # train
         for i, (x, y) in enumerate(train_loader):
             if isinstance(x, list):
@@ -199,7 +196,7 @@ class MetaOptNet(MetaTemplate):
         A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
         b = Variable(torch.zeros(tasks_per_batch, n_support))
         #print (A.size(), b.size())
-        G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
+        G, e, C, h, A, b = [x.double().cuda() for x in [G, e, C, h, A, b]]
 
         # Solve the following QP to fit SVM:
         #        \hat z =   argmin_z 1/2 z^T G z + e^T z
