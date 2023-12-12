@@ -74,7 +74,7 @@ class MetaOptNet(MetaTemplate):
             compatibility = computeGramMatrix(z_support, z_query)
             compatibility = compatibility.float()
             compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
-            qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
+            #qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
             logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
             logits = logits * compatibility
             logits = torch.sum(logits, 1)
