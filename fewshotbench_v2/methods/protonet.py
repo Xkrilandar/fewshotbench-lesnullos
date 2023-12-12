@@ -14,7 +14,7 @@ class ProtoNet(MetaTemplate):
         self.loss_fn = nn.CrossEntropyLoss()
 
     def set_forward(self, x, is_feature=False):
-        self.n_support = self.n_way * 5
+        self.n_support = self.n_way
         z_support, z_query = self.parse_feature(x, is_feature)
 
         z_support = z_support.contiguous()
