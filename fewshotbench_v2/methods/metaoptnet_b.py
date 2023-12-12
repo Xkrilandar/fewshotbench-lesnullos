@@ -12,7 +12,7 @@ from sklearn.pipeline import make_pipeline
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
-        self.loss_fn = nn.CrossEntropyLoss()
+        self.loss_fn = nn.HingeEmbeddingLoss()
         self.clf = make_pipeline(StandardScaler(), SVC(kernel='linear', C=0.5))
 
 
@@ -42,5 +42,6 @@ class MetaOptNet(MetaTemplate):
         y_query = torch.from_numpy(np.repeat(range( self.n_way ), self.n_query ))
         y_query = Variable(y_query.cuda())
 
+        targets = torch.ones_like(scores)
         scores = self.set_forward(x)
-        return self.loss_fn(scores, y_query )
+        return self.loss_fn(scores, targets )
