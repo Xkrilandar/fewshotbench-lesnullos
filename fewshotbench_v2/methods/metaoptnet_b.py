@@ -122,7 +122,7 @@ class MetaOptNet(MetaTemplate):
         qp_sol = qp_sol.reshape(tasks_per_batch, n_support, self.n_way)
         logits = qp_sol.float().unsqueeze(2).expand(tasks_per_batch, n_support, n_query, self.n_way)
         logits = logits * compatibility
-        print(logits, logits.size())
+        print(logits, logits.size()) # 5 5 15 5
         logits = torch.sum(logits, 1)
         print(logits.size())
         return logits
@@ -132,7 +132,9 @@ class MetaOptNet(MetaTemplate):
         y_query = Variable(y_query.cuda())
 
         scores = self.set_forward(x)
+        scores = scores.view(self.n_way * self.n_query, self.n_way)
         print(scores.size()) # this should be 75 5, is 5 15 5 currently
+
         return self.loss_fn(scores, y_query)
     
     
