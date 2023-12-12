@@ -36,6 +36,7 @@ class MetaOptNet(MetaTemplate):
         #self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
         self.loss_fn = nn.CrossEntropyLoss()
         self.C_reg = 0.1
+        print(self.n_way)
 
 
     def set_forward(self, x, y_support, is_feature=False):
