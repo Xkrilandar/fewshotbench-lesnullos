@@ -67,7 +67,8 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        
+        print("zzzzzzzzz", z_support.shape)
+        print("yyyyyyyyyyyyyyyyyyyy", y_support.shape)
         original_labels = z_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         support_labels = torch.tensor(map_labels(original_labels)).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
