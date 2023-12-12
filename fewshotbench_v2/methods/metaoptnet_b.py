@@ -11,14 +11,12 @@ import torch.nn.functional as F
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
-        #self.classifier = DifferentiableSVM(num_classes=num_classes, num_features=num_features) 
         self.loss_fn = nn.CrossEntropyLoss()
         self.C_reg = 0.01
 
 
     def set_forward(self, x, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature)
-        #y_support, y_query = self.parse_feature(y, True)
 
         tasks_per_batch = z_query.size(0)
         n_support = z_support.size(1)
@@ -106,129 +104,12 @@ class MetaOptNet(MetaTemplate):
     def set_forward_loss(self, x):
         y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
         y_query = Variable(y_query.cuda())
-        # y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query * self.n_way // self.n_way))
-        # y_query = y_query.view(self.n_way, self.n_query, -1)  # Reshape to [5, 15, 5]
-        # y_query = Variable(y_query.cuda())
 
+        scores = self.set_forward(x)
 
-
-
-        # scores = self.set_forward(x, y)
-        # scores = scores.view(self.n_query * self.n_way, -1)
-        logits = self.set_forward(x)
-
-        
-        return logits, y_query
-
-        # return self.loss_fn(scores, y_query)
+        return self.loss_fn(scores, y_query)
     
-    def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
-        print_freq = 10
-        avg_loss = 0
-        task_count = 0
-        loss_all = []
-        optimizer.zero_grad()
-
-        # train
-        for i, (x, y) in enumerate(train_loader):
-            if isinstance(x, list):
-                self.n_query = x[0].size(1) - self.n_support
-                
-                if self.change_way:
-                    self.n_way = x[0].size(0)
-                # assert self.n_way == x[0].size(
-                #     0), f"MAML do not support way change, n_way is {self.n_way} but x.size(0) is {x.size(0)}"
-            else:
-                self.n_query = x.size(1) - self.n_support
-                if self.change_way:
-                    self.n_way = x.size(0)  
-                # assert self.n_way == x.size(
-                #     0), f"MAML do not support way change, n_way is {self.n_way} but x.size(0) is {x.size(0)}"
-
-            # Labels are assigned later if classification task
-            # if self.type == "classification":
-            #     y = None
-
-            logits, y_query = self.set_forward_loss(x)
-
-            
-            label_mapping = {label: i for i, label in enumerate(set(torch.unique(y_query).tolist()))}
-            y_query = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
-            smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
-            eps = 0
-            smoothed_one_hot = smoothed_one_hot * (1 - eps) + (1 - smoothed_one_hot) * eps / (self.n_way - 1)
-
-            log_prb = F.log_softmax(logits.reshape(-1, self.n_way), dim=1)
-            loss = -(smoothed_one_hot * log_prb).sum(dim=1)
-            loss = loss.mean()
-            # loss_all.append(loss)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            avg_loss = avg_loss + loss.item()
-
-            if i % print_freq == 0:
-                print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader),
-                                                                        avg_loss / float(i + 1)))
-                wandb.log({'loss/train': avg_loss / float(i + 1)})
     
-    def test_loop(self, test_loader, record=None, return_std=False):
-        correct = 0
-        count = 0
-        acc_all = []
-
-        iter_num = len(test_loader)
-        for i, (x, y) in enumerate(test_loader):
-            if isinstance(x, list):
-                self.n_query = x[0].size(1) - self.n_support
-                if self.change_way:
-                    self.n_way = x[0].size(0)
-            else: 
-                self.n_query = x.size(1) - self.n_support
-                if self.change_way:
-                    self.n_way = x.size(0)
-            logits = self.set_forward(x)
-
-            # smoothed_one_hot = one_hot(y_query.reshape(-1), self.n_way)
-            # eps = 0
-            # smoothed_one_hot = smoothed_one_hot * (1 - eps) + (1 - smoothed_one_hot) * eps / (self.n_way - 1)
-
-            # log_prb = F.log_softmax(logits.reshape(-1, self.n_way), dim=1)
-            # loss = -(smoothed_one_hot * log_prb).sum(dim=1)
-            # loss = loss.mean()
-            y_query = torch.from_numpy(np.repeat(range(self.n_way), self.n_query))
-            y_query = Variable(y_query.cuda())
-            acc = self.count_accuracy(logits.reshape(-1, self.n_way), y_query.reshape(-1))
-
-            # correct_this, count_this = self.correct(x, y)
-            acc_all.append(acc.cpu())
-
-        acc_all = np.asarray(acc_all)
-        acc_mean = np.mean(acc_all)
-        acc_std = np.std(acc_all)
-        print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
-
-        if return_std:
-            return acc_mean, acc_std
-        else:
-            return acc_mean
-        
-    # def correct(self, x, y):
-    #     scores = self.set_forward(x, y)
-    #     y_query = np.repeat(range(self.n_way), self.n_query)
-
-    #     topk_scores, topk_labels = scores.data.topk(1, 1, True, True)
-    #     topk_ind = topk_labels.cpu().numpy()
-    #     top1_correct = np.sum(topk_ind[:, 0] == y_query)
-    #     return float(top1_correct), len(y_query)
-    
-    def count_accuracy(self, logits, label):
-        #print(logits)
-        pred = torch.argmax(logits, dim=1).view(-1)
-        label = label.view(-1)
-        accuracy = 100 * pred.eq(label).float().mean()
-        return accuracy
 
 
     
@@ -254,23 +135,6 @@ def computeGramMatrix(A, B):
 
     return torch.bmm(A, B.transpose(1,2))
 
-# def solve_qp(Q, c, G, h, A, b, n_support):
-#     # Create a variable to optimize
-#     # x = cp.Variable(len(c))
-#     x = cp.Variable(n_support)
-
-#     # Define the objective function
-#     objective = cp.Minimize(0.5 * cp.quad_form(x, Q) + x)
-
-#     # Define the constraints
-#     # constraints = [G @ x <= h, A @ x == b]
-#     constraints = [A @ x == b]
-
-#     # Define the problem and solve it
-#     prob = cp.Problem(objective, constraints)
-#     prob.solve()
-
-#     return x.value
 
 def batched_kronecker(matrix1, matrix2):
     matrix1_flatten = matrix1.reshape(matrix1.size()[0], -1)
