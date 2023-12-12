@@ -39,20 +39,20 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
-        # z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
-        # z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
+        z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
+        z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
         print(z_support.size()) # 25 64
         print(z_query.size()) # 75 64
 
-        # kernel_matrix = torch.bmm(z_support.unsqueeze(1), z_support.unsqueeze(2)).squeeze()
+        kernel_matrix = torch.bmm(z_support.unsqueeze(1), z_support.unsqueeze(2)).squeeze()
         
-        kernel_matrix = computeGramMatrix(z_support, z_support)
+        #kernel_matrix = computeGramMatrix(z_support, z_support)
         print(kernel_matrix.size()) # 25
 
 
         
 
-        id_matrix_0 = torch.eye(self.n_way).expand(self.n_way, self.n_way).cuda()
+        id_matrix_0 = torch.eye(self.n_way).expand(self.n_way * self.n_way).cuda()
         print(id_matrix_0.size()) # 5 5 5 
 
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
