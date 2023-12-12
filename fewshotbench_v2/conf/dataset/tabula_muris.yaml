@@ -13,7 +13,11 @@ dataset:
 
 backbone:
   _target_: backbones.resnet.ResNet
-  layer_dim: [ 64, 64 ]
+  #layer_dim: [ 64, 64 ]
+  list_of_num_layers: [3, 3, 3, 3]
+  list_of_out_dims: [64, 128, 256, 512]
+
+
 
 # For baseline, how many total classes
 train_classes: 59
