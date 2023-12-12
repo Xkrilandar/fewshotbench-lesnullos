@@ -7,6 +7,7 @@ import wandb
 from torch.autograd import Variable
 
 from utils.data_utils import pearson_corr
+import sys
 
 
 class MetaTemplate(nn.Module):
@@ -122,7 +123,7 @@ class MetaTemplate(nn.Module):
         acc_mean = np.mean(acc_all)
         acc_std = np.std(acc_all)
         print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
-
+        sys.exit()
         if return_std:
             return acc_mean, acc_std
         else:
