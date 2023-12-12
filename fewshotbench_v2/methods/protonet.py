@@ -21,6 +21,7 @@ class ProtoNet(MetaTemplate):
         z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
 
         dists = euclidean_dist(z_query, z_proto)
+        print("dists", dists)
         scores = -dists
         return scores
 
