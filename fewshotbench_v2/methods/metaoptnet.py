@@ -23,6 +23,7 @@ class MetaOptNet(MetaTemplate):
         z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
         z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
         print(z_query.size())
+        
         support_labels = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
 
         support_labels_cpu = support_labels.cpu().detach().numpy()
@@ -47,5 +48,4 @@ class MetaOptNet(MetaTemplate):
         scores = self.set_forward(x)
         print(scores.size())
         sys.exit()
-        targets = torch.ones_like(scores)
-        return self.loss_fn(scores, targets )
+        return self.loss_fn(scores, y_query )

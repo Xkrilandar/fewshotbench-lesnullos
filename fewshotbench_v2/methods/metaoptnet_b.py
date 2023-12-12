@@ -23,9 +23,9 @@ class MetaOptNet(MetaTemplate):
         n_support = z_support.size(1)
         n_query = z_query.size(1)
 
-        assert(z_query.dim() == 3)
-        assert(z_support.dim() == 3)
-        assert(z_query.size(0) == z_support.size(0) and z_query.size(2) == z_support.size(2))
+        # assert(z_query.dim() == 3)
+        # assert(z_support.dim() == 3)
+        # assert(z_query.size(0) == z_support.size(0) and z_query.size(2) == z_support.size(2))
         #assert(n_support == n_way * n_shot)      # n_support must equal to n_way * n_shot
 
         #Here we solve the dual problem:
@@ -39,8 +39,12 @@ class MetaOptNet(MetaTemplate):
         #This borrows the notation of liblinear.
         
         #\alpha is an (n_support, n_way) matrix
+        z_support = z_support.contiguous().view(self.n_way * self.n_support, -1)
+        z_query = z_query.contiguous().view(self.n_way * self.n_query, -1)
         print(z_support.size())
         print(z_query.size())
+
+
         kernel_matrix = computeGramMatrix(z_support, z_support)
         
 
@@ -50,20 +54,22 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         
         #print("y_support", y_support.size())
-        y_support = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)))
-        original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
+        support_labels = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_support)).cuda())
+
+        # original_labels = y_support.reshape(tasks_per_batch * n_support) # ??? OU PAS)
         #print("original_labels", original_labels.size())
         #print("y_query", y_query.size())
         # y_query = y_query.reshape(tasks_per_batch * n_query)
         #print("y_query", y_query.size())
 
-        label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
-        support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
+        # label_mapping = {label: i for i, label in enumerate(set(torch.unique(original_labels).tolist()))}
+        # support_labels = torch.tensor([label_mapping[label.item()] for label in original_labels]).to('cuda')
         # query_labels = torch.tensor([label_mapping[label.item()] for label in y_query]).to('cuda')
         support_labels_one_hot = one_hot(support_labels, self.n_way) # (tasks_per_batch * n_support, n_support)
         support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, n_support, self.n_way)
         support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, n_support * self.n_way)
         
+
         G = block_kernel_matrix
         e = -1.0 * support_labels_one_hot
 
@@ -98,6 +104,7 @@ class MetaOptNet(MetaTemplate):
         print("qp_sol", qp_sol, qp_sol.size())
         # Compute the classification score.
         print("z_query", z_query)
+        
         compatibility = computeGramMatrix(z_support, z_query)
         compatibility = compatibility.float()
         compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, n_support, n_query, self.n_way)
