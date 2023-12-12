@@ -13,7 +13,6 @@ class MetaOptNet(MetaTemplate):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
         self.loss_fn = nn.CrossEntropyLoss()
         self.C_reg = 0.1
-        print(self.n_way)
 
     def set_forward(self, x, y_support, is_feature=False):
         z_support, z_query = self.parse_feature(x, is_feature=False)
