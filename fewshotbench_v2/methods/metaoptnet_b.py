@@ -129,8 +129,6 @@ class MetaOptNet(MetaTemplate):
         #self.y_query = torch.tensor(y_query.reshape(-1).tolist()).to('cuda')
         y_query = y_query.reshape(-1)
         y_query = torch.tensor(map_labels(y_query)).to('cuda')
-        print("scoooores", scores.shape)
-        print("queeeeery", y_query.shape)
         ret = self.loss_fn(scores, y_query)
         return ret
     
