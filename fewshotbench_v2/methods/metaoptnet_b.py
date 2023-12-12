@@ -12,7 +12,7 @@ from sklearn.pipeline import make_pipeline
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support):
         super(MetaOptNet, self).__init__(backbone, n_way, n_support)
-        self.loss_fn = nn.HingeEmbeddingLoss()
+        self.loss_fn = nn.CrossEntropyLoss()
         self.clf = make_pipeline(StandardScaler(), SVC(kernel='linear', C=0.5))
 
 
