@@ -7,6 +7,7 @@ import cvxpy as cp
 import wandb
 from qpth.qp import QPFunction
 import torch.nn.functional as F
+import sys
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support, num_classes, num_features):
@@ -106,7 +107,8 @@ class MetaOptNet(MetaTemplate):
         y_query = Variable(y_query.cuda())
 
         scores = self.set_forward(x)
-
+        print(scores.size())
+        sys.exit()
         return self.loss_fn(scores, y_query)
     
     
