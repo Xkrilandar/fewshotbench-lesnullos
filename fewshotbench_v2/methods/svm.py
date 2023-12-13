@@ -51,7 +51,7 @@ class MetaOptNet(MetaTemplate):
 
 
     def set_forward_loss(self, x):
-        # 0000011111222223333344444
+        # creating labels for a few shot learning task
         y_query = Variable(torch.from_numpy(np.repeat(range(self.n_way), self.n_query)).cuda())
 
         scores = self.set_forward(x)
