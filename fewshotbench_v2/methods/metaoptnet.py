@@ -18,23 +18,23 @@ class MetaOptNet(MetaTemplate):
     # Forward pass for the model. Extracts features and computes class logits.
     def set_forward(self, x, y_support, is_feature=False):
         #Parses the x features into query and support, also calls the backbone and embeds the features
-        z_support, z_query = self.parse_feature(x, is_feature=False)
+        z_support, z_query = self.parse_feature(x, is_feature)
 
         tasks_per_batch = z_query.size(0)
 
         #reshapes the support slabels
-        original_labels = y_support.reshape(tasks_per_batch * self.n_support)
-        #maps labels to values between [0, n_way] so that we can call one_hot
-        support_labels = torch.tensor(map_labels(original_labels, self.n_way))
+        y_support = y_support.reshape(tasks_per_batch * self.n_support)
+        #maps labels to values between [0, n_way] so that we can train on n way
+        y_support = torch.tensor(map_labels(y_support, self.n_way))
         #converts support labels to one-hot encodings
-        support_labels_one_hot = one_hot(support_labels, self.n_way).to('cuda')
-        support_labels_one_hot = support_labels_one_hot.view(tasks_per_batch, self.n_support, self.n_way)
-        support_labels_one_hot = support_labels_one_hot.reshape(tasks_per_batch, self.n_support * self.n_way)
+        y_support_one_hot = one_hot(y_support, self.n_way).to('cuda')
+        y_support_one_hot = y_support_one_hot.view(tasks_per_batch, self.n_support, self.n_way)
+        y_support_one_hot = y_support_one_hot.reshape(tasks_per_batch, self.n_support * self.n_way)
         
         # Solve the quadratic programming problem for SVM
-        qp_sol = self.qp_solve(support_labels_one_hot, z_support, self.n_support, tasks_per_batch)
+        qp_sol = self.qp_solve(y_support_one_hot, z_support, self.n_support, tasks_per_batch)
         #compute the compatibility between the support and query features
-        compatibility = computeGramMatrix(z_support, z_query)
+        compatibility = gram_matrix(z_support, z_query)
         compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, self.n_support, self.n_query, self.n_way)
         #calculate the class logits with the compatibility and the quadratic solution
         logits = qp_sol * compatibility
@@ -53,8 +53,8 @@ class MetaOptNet(MetaTemplate):
         #calls the loss function
         return self.loss_fn(scores, y_query)
     
-    #same training loop as the parrent, just gives the labels to set_forward_loss
-    def train_loop(self, epoch, train_loader, optimizer):  # overwrite parrent function
+    #same training loop as the parent, just gives the labels to set_forward_loss
+    def train_loop(self, epoch, train_loader, optimizer):  # overwrite parent function
         print_freq = 10
         avg_loss = 0
         task_count = 0
@@ -102,8 +102,8 @@ class MetaOptNet(MetaTemplate):
         loss = self.loss_fn(scores, torch.tensor(y_query).to('cuda')).cpu().detach().numpy()
         return float(top1_correct), len(y_query), loss
     
-    #same as parrent loop just gives the labels to the correct function
-    def test_loop(self, test_loader, record=None, return_std=False): # overwrite parrent function
+    #same as parent loop just gives the labels to the correct function
+    def test_loop(self, test_loader, record=None, return_std=False): # overwrite parent function
         correct = 0
         count = 0
         acc_all = []
@@ -135,20 +135,20 @@ class MetaOptNet(MetaTemplate):
             return acc_mean
 
     # Solve the quadratic programming problem for SVM
-    def qp_solve(self, support_labels_one_hot, z_support, n_support, tasks_per_batch):
+    def qp_solve(self, y_support_one_hot, z_support, n_support, tasks_per_batch):
         #compute the kernel matrix
-        kernel_matrix = computeGramMatrix(z_support, z_support)
+        kernel_matrix = gram_matrix(z_support, z_support)
          # Prepare the block matrix for the QP solver
         id_matrix_0 = torch.eye(self.n_way).expand(tasks_per_batch, self.n_way, self.n_way).cuda()
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         #prepare the block matrix for the QP solver
         G = block_kernel_matrix #Qudratic term 
-        e = -1.0 * support_labels_one_hot # Linear term
+        e = -1.0 * y_support_one_hot # Linear term
         #Inequality constraints
         id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
         C = Variable(id_matrix_1)
-        h = Variable(self.C_reg * support_labels_one_hot)
+        h = Variable(self.C_reg * y_support_one_hot)
         #Equality constraints
         id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
         A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
@@ -176,7 +176,7 @@ def map_labels(labels, n_way):
 
 
 # Compute the Gram matrix, which is the matrix of dot products between all pairs of vectors from A and B.
-def computeGramMatrix(A, B):
+def gram_matrix(A, B):
     return torch.bmm(A, B.transpose(1,2)).float()
 
 # Perform a batched Kronecker product between two matrices.
