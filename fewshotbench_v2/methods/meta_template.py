@@ -95,25 +95,6 @@ class MetaTemplate(nn.Module):
             optimizer.step()
             avg_loss = avg_loss + loss.item()
 
-
-            acc_all = []
-            iter_num = len(train_loader)
-            if isinstance(x, list):
-                self.n_query = x[0].size(1) - self.n_support
-                if self.change_way:
-                    self.n_way = x[0].size(0)
-            else: 
-                self.n_query = x.size(1) - self.n_support
-                if self.change_way:
-                    self.n_way = x.size(0)
-            correct_this, count_this = self.correct(x)
-            acc_all.append(correct_this / count_this * 100)
-
-            acc_all = np.asarray(acc_all)
-            acc_mean = np.mean(acc_all)
-            acc_std = np.std(acc_all)
-            print('%d Test Acc = %4.2f%% +- %4.2f%%' % (iter_num, acc_mean, 1.96 * acc_std / np.sqrt(iter_num)))
-
             if i % print_freq == 0:
                 # print(optimizer.state_dict()['param_groups'][0]['lr'])
                 print('Epoch {:d} | Batch {:d}/{:d} | Loss {:f}'.format(epoch, i, len(train_loader),
