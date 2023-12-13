@@ -4,7 +4,7 @@ defaults:
 
 model: FCNet
 n_way: 5
-n_shot: 5
+n_shot: 30
 n_query: ???
 
 mode: train
@@ -17,7 +17,7 @@ exp:
   val_freq: 1
 
 optimizer: Adam
-lr: 0.01
+lr: 0.001
 optimizer_cls:
   _target_: torch.optim.${optimizer}
   lr: ${lr}
