@@ -17,9 +17,9 @@ import sys
 # this means that the model doesnt learn to adapt its embeddings for the method
 # as we can see in the evaluation where the accuracy and loss are constant
 
-class MetaOptNet(MetaTemplate):
+class SVM(MetaTemplate):
     def __init__(self, backbone, n_way, n_support):
-        super(MetaOptNet, self).__init__(backbone, n_way, n_support)
+        super(SVM, self).__init__(backbone, n_way, n_support)
         self.loss_fn = nn.CrossEntropyLoss()
 
         # putting the SVM init in the method init or in the forward function doesnt change the result

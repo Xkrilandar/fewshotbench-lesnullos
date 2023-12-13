@@ -7,6 +7,10 @@ from utils.data_utils import one_hot
 from qpth.qp import QPFunction
 import wandb
 
+# MetaOptNet 
+
+# average acc for this method is 100%
+# the main feature of this method is the QP_solver that is called in the qp_solve function
 
 class MetaOptNet(MetaTemplate):
     def __init__(self, backbone, n_way, n_support):
