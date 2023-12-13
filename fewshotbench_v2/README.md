@@ -1,5 +1,11 @@
+
+
+
 # Few Shot Benchmark for Biomedical Datasets
 
+To the TAs:
+## Method implementations
+The two different methods are in the methods/svm.py and methods/metaoptnet.py files
 
 ## Installation
 
