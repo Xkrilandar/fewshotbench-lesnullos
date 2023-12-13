@@ -34,7 +34,7 @@ class MetaOptNet(MetaTemplate):
         # Solve the quadratic programming problem for SVM
         qp_sol = self.qp_solve(y_support_one_hot, z_support, self.n_support, tasks_per_batch)
         #compute the compatibility between the support and query features
-        compatibility = gram_matrix(z_support, z_query)
+        compatibility = gram_matrix(z_support, z_query).float()
         compatibility = compatibility.unsqueeze(3).expand(tasks_per_batch, self.n_support, self.n_query, self.n_way)
         #calculate the class logits with the compatibility and the quadratic solution
         logits = qp_sol * compatibility
@@ -94,7 +94,7 @@ class MetaOptNet(MetaTemplate):
         y_query = y_query.reshape(-1)
         #maps labels to values between [0, n_way]
         y_query = map_labels(y_query, self.n_way)
-        #outputs top labels
+        #outputs top labels with respect to the scores
         _, topk_labels = scores.data.topk(1, 1, True, True)
         topk_ind = topk_labels.cpu().numpy()
         #sums number of correct predicted labels
@@ -143,22 +143,22 @@ class MetaOptNet(MetaTemplate):
         block_kernel_matrix = batched_kronecker(kernel_matrix, id_matrix_0)
         block_kernel_matrix += 1.0 * torch.eye(self.n_way*n_support).expand(tasks_per_batch, self.n_way*n_support, self.n_way*n_support).cuda()
         #prepare the block matrix for the QP solver
-        G = block_kernel_matrix #Qudratic term 
-        e = -1.0 * y_support_one_hot # Linear term
-        #Inequality constraints
+        Q = block_kernel_matrix #Qudratic term 
+        c = -1.0 * y_support_one_hot # Linear term
+        #Inequality constraints Ax <= b
         id_matrix_1 = torch.eye(self.n_way * n_support).expand(tasks_per_batch, self.n_way * n_support, self.n_way * n_support)
-        C = Variable(id_matrix_1)
-        h = Variable(self.C_reg * y_support_one_hot)
-        #Equality constraints
+        A = Variable(id_matrix_1)
+        b = Variable(self.C_reg * y_support_one_hot)
+        #Equality constraints Gx == h
         id_matrix_2 = torch.eye(n_support).expand(tasks_per_batch, n_support, n_support).cuda()
-        A = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
-        b = Variable(torch.zeros(tasks_per_batch, n_support))
+        G = Variable(batched_kronecker(id_matrix_2, torch.ones(tasks_per_batch, 1, self.n_way).cuda()))
+        h = Variable(torch.zeros(tasks_per_batch, n_support))
         
         #Put the tensors on GPU
-        G, e, C, h, A, b = [x.float().cuda() for x in [G, e, C, h, A, b]]
+        Q, c, A, b, G, h = [x.float().cuda() for x in [Q, c, A, b, G, h]]
         #solve the QP problem
         maxIter = 5
-        qp_sol = QPFunction(verbose=False, maxIter=maxIter)(G, e.detach(), C.detach(), h.detach(), A.detach(), b.detach())
+        qp_sol = QPFunction(verbose=False, maxIter=maxIter)(Q, c.detach(), A.detach(), b.detach(), G.detach(), h.detach())
         qp_sol = qp_sol.reshape(tasks_per_batch, self.n_support, self.n_way)
         return qp_sol.float().unsqueeze(2).expand(tasks_per_batch, self.n_support, self.n_query, self.n_way)
         
@@ -177,7 +177,7 @@ def map_labels(labels, n_way):
 
 # Compute the Gram matrix, which is the matrix of dot products between all pairs of vectors from A and B.
 def gram_matrix(A, B):
-    return torch.bmm(A, B.transpose(1,2)).float()
+    return torch.bmm(A, B.transpose(1,2))
 
 # Perform a batched Kronecker product between two matrices.
 # The Kronecker product is a generalization of the outer product from vectors to matrices.
